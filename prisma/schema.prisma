@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ───────────────────────────────────────────────────────────────
+
+enum GlobalRole {
+  PLATFORM_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum GymRole {
+  OWNER
+  MEMBER
+}
+
+enum GymStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum GymUserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum SessionKind {
+  PLATFORM_ADMIN
+  OWNER
+  MEMBER
+}
+
+enum OtpPurpose {
+  MEMBER_LOGIN
+}
+
+enum MemberMembershipStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum MemberPaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+}
+
+enum RegistrationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ── Identity ────────────────────────────────────────────────────────────
+
+/// A person. Email+password for platform admins and owners, phone+OTP for members.
+/// email is stored lower-cased and phone in E.164 (+91XXXXXXXXXX); both normalised by the app.
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String?    @unique
+  phone        String?    @unique
+  name         String
+  passwordHash String?
+  globalRole   GlobalRole?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+
+  gymUsers GymUser[]
+  sessions Session[]
+}
+
+model Session {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @db.Uuid
+  /// How the user logged in. Decides lifetime/idle limits only; authorization always re-reads roles from the database.
+  kind       SessionKind
+  /// Gym the session is acting in. Null for platform admins and for members who have not chosen a gym yet.
+  gymId      String?   @db.Uuid
+  /// SHA-256 of the opaque cookie token. The token itself is never stored.
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  ip         String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OtpVerification {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone       String
+  /// HMAC-SHA256(OTP_SECRET, id:phone:code). The code itself is never stored.
+  codeHash    String
+  purpose     OtpPurpose
+  attempts    Int        @default(0)
+  expiresAt   DateTime   @db.Timestamptz(3)
+  consumedAt  DateTime?  @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  requestIp   String?
+
+  @@index([phone, createdAt])
+}
+
+/// Fixed-window counters for rate limiting (works on serverless without extra infrastructure).
+model RateLimit {
+  key         String
+  windowStart DateTime @db.Timestamptz(3)
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+}
+
+// ── Tenancy ─────────────────────────────────────────────────────────────
+
+model Gym {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String    @unique
+  attendanceToken String @unique @default(dbgenerated("gen_random_uuid()::text"))
+  status    GymStatus @default(PENDING)
+  timezone  String    @default("Asia/Kolkata")
+  phone     String?
+  address   String?
+  city      String?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  gymUsers      GymUser[]
+  subscriptions Subscription[]
+  membershipPlans MembershipPlan[]
+  memberships Membership[]
+  payments Payment[]
+  paymentCorrections PaymentCorrection[]
+  attendance Attendance[]
+}
+
+model GymUser {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String        @db.Uuid
+  userId    String        @db.Uuid
+  displayName String?
+  role      GymRole
+  status    GymUserStatus @default(ACTIVE)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
+  gym  Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  memberships Membership[]
+  payments Payment[]
+  attendance Attendance[]
+
+  @@unique([gymId, userId])
+  @@index([userId])
+}
+
+// ── Gym operations (tenant-scoped) ─────────────────────────────────────
+
+model MembershipPlan {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId        String   @db.Uuid
+  name         String
+  durationDays Int
+  priceInr     Decimal  @db.Decimal(12, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  gym         Gym          @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  memberships Membership[]
+
+  @@unique([gymId, id])
+  @@index([gymId, active])
+}
+
+model Membership {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String                 @db.Uuid
+  userId    String                 @db.Uuid
+  planId    String                 @db.Uuid
+  startsAt  DateTime               @db.Timestamptz(3)
+  endsAt    DateTime               @db.Timestamptz(3)
+  priceInr  Decimal                @db.Decimal(12, 2)
+  status    MemberMembershipStatus @default(ACTIVE)
+  createdAt DateTime               @default(now()) @db.Timestamptz(3)
+
+  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member   GymUser       @relation(fields: [gymId, userId], references: [gymId, userId], onDelete: Restrict)
+  plan     MembershipPlan @relation(fields: [gymId, planId], references: [gymId, id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([gymId, id])
+  @@index([gymId, userId, endsAt])
+  @@index([gymId, planId])
+}
+
+model Payment {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId            String             @db.Uuid
+  userId           String             @db.Uuid
+  membershipId     String             @db.Uuid
+  amountInr        Decimal            @db.Decimal(12, 2)
+  method           MemberPaymentMethod
+  reference        String?
+  recordedByUserId String             @db.Uuid
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  voidedAt         DateTime?          @db.Timestamptz(3)
+  voidReason       String?
+  voidedByUserId   String?            @db.Uuid
+
+  gym         Gym                 @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member      GymUser             @relation(fields: [gymId, userId], references: [gymId, userId], onDelete: Restrict)
+  membership  Membership          @relation(fields: [gymId, membershipId], references: [gymId, id], onDelete: Restrict)
+  corrections PaymentCorrection[]
+
+  @@unique([gymId, id])
+  @@index([gymId, userId, createdAt])
+  @@index([gymId, membershipId])
+}
+
+model PaymentCorrection {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId           String   @db.Uuid
+  paymentId       String   @db.Uuid
+  changedByUserId String   @db.Uuid
+  amountBefore    Decimal  @db.Decimal(12, 2)
+  reason          String
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  gym     Gym     @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  payment Payment @relation(fields: [gymId, paymentId], references: [gymId, id], onDelete: Restrict)
+
+  @@unique([paymentId])
+  @@index([gymId, createdAt])
+}
+
+model Attendance {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String   @db.Uuid
+  userId      String   @db.Uuid
+  localDate   DateTime @db.Date
+  checkedInAt DateTime @default(now()) @db.Timestamptz(3)
+
+  gym    Gym     @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member GymUser @relation(fields: [gymId, userId], references: [gymId, userId], onDelete: Restrict)
+
+  @@unique([gymId, userId, localDate])
+  @@index([gymId, localDate, checkedInAt])
+  @@index([gymId, userId, checkedInAt])
+}
+
+// ── SaaS subscriptions (FIXIA ↔ gym; unrelated to member memberships) ───
+
+model SubscriptionPlan {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  priceInr     Decimal  @db.Decimal(12, 2)
+  durationDays Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId           String             @db.Uuid
+  planId          String             @db.Uuid
+  startsAt        DateTime           @db.Timestamptz(3)
+  endsAt          DateTime           @db.Timestamptz(3)
+  /// Price agreed at activation. Later plan price changes never rewrite history.
+  priceInr        Decimal            @db.Decimal(12, 2)
+  status          SubscriptionStatus @default(ACTIVE)
+  createdByUserId String?            @db.Uuid
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+
+  gym  Gym              @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, endsAt])
+}
+
+// ── Audit ───────────────────────────────────────────────────────────────
+
+/// Append-only: the application role has no UPDATE/DELETE privilege on this table.
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String?  @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  ip          String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model GymRegistrationRequest {
+  id         String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymName    String
+  ownerName  String
+  ownerEmail String
+  ownerPhone String
+  city       String?
+  address    String?
+  notes      String?
+  status     RegistrationRequestStatus @default(PENDING)
+  createdAt  DateTime                 @default(now()) @db.Timestamptz(3)
+  reviewedAt DateTime?                @db.Timestamptz(3)
+  reviewedByUserId String?            @db.Uuid
+
+  @@index([status, createdAt])
+}
