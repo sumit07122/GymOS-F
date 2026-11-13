@@ -71,18 +71,25 @@ enum RegistrationRequestStatus {
 /// A person. Email+password for platform admins and owners, phone+OTP for members.
 /// email is stored lower-cased and phone in E.164 (+91XXXXXXXXXX); both normalised by the app.
 model User {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email        String?    @unique
-  phone        String?    @unique
-  name         String
-  passwordHash String?
-  globalRole   GlobalRole?
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String?    @unique
+  phone              String?    @unique
+  name               String
+  passwordHash       String?
+  globalRole         GlobalRole?
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(false)
+  emailVerified      Boolean    @default(false)
+  emailVerifiedAt    DateTime?  @db.Timestamptz(3)
+  passwordChangedAt  DateTime?  @db.Timestamptz(3)
+  lastLoginAt        DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
 
-  gymUsers GymUser[]
-  sessions Session[]
+  gymUsers    GymUser[]
+  sessions    Session[]
+  emailTokens EmailVerificationToken[]
+  resetTokens PasswordResetToken[]
 }
 
 model Session {
@@ -133,41 +140,53 @@ model RateLimit {
 // ── Tenancy ─────────────────────────────────────────────────────────────
 
 model Gym {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  slug      String    @unique
-  attendanceToken String @unique @default(dbgenerated("gen_random_uuid()::text"))
-  status    GymStatus @default(PENDING)
-  timezone  String    @default("Asia/Kolkata")
-  phone     String?
-  address   String?
-  city      String?
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  slug            String    @unique
+  attendanceToken String    @unique @default(dbgenerated("gen_random_uuid()::text"))
+  status          GymStatus @default(PENDING)
+  timezone        String    @default("Asia/Kolkata")
+  phone           String?
+  address         String?
+  city            String?
+  state           String?
+  pinCode         String?
+  gstNumber       String?
+  logo            String?
+  operatingHours  Json?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
-  gymUsers      GymUser[]
-  subscriptions Subscription[]
-  membershipPlans MembershipPlan[]
-  memberships Membership[]
-  payments Payment[]
+  gymUsers           GymUser[]
+  subscriptions      Subscription[]
+  membershipPlans    MembershipPlan[]
+  memberships        Membership[]
+  payments           Payment[]
   paymentCorrections PaymentCorrection[]
-  attendance Attendance[]
+  attendance         Attendance[]
+  importJobs         MemberImportJob[]
+  credentialBatches  MemberCredentialBatch[]
 }
 
 model GymUser {
-  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gymId     String        @db.Uuid
-  userId    String        @db.Uuid
-  displayName String?
-  role      GymRole
-  status    GymUserStatus @default(ACTIVE)
-  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId            String        @db.Uuid
+  userId           String        @db.Uuid
+  displayName      String?
+  role             GymRole
+  status           GymUserStatus @default(ACTIVE)
+  gender           String?
+  dateOfBirth      DateTime?     @db.Date
+  address          String?
+  emergencyContact String?
+  notes            String?
+  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
 
-  gym  Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  gym         Gym          @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   memberships Membership[]
-  payments Payment[]
-  attendance Attendance[]
+  payments    Payment[]
+  attendance  Attendance[]
 
   @@unique([gymId, userId])
   @@index([userId])
@@ -332,3 +351,67 @@ model GymRegistrationRequest {
 
   @@index([status, createdAt])
 }
+
+// ── Bulk Member Import & Credential Management ─────────────────────────
+
+model MemberImportJob {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId            String   @db.Uuid
+  filename         String
+  totalRecords     Int      @default(0)
+  validRecords     Int      @default(0)
+  invalidRecords   Int      @default(0)
+  duplicateRecords Int      @default(0)
+  status           String   @default("COMPLETED")
+  errors           Json?
+  summary          Json?
+  createdByUserId  String   @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, createdAt])
+}
+
+model MemberCredentialBatch {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId              String   @db.Uuid
+  generatedByUserId  String   @db.Uuid
+  credentialsCount   Int      @default(0)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt          DateTime @db.Timestamptz(3)
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, createdAt])
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @db.Uuid
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+

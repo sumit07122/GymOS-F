@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Button, Field, Notice } from "@/components/ui";
 import {
   passwordLoginAction,
+  memberPasswordLoginAction,
   requestOtpAction,
   verifyOtpAction,
   type FormState,
@@ -132,59 +134,116 @@ function StaffForm() {
 }
 
 function MemberForm() {
+  const [method, setMethod] = useState<"password" | "otp">("password");
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwState, pwAction, pwPending] = useActionState(memberPasswordLoginAction, init);
   const [reqState, reqAction, reqPending] = useActionState(requestOtpAction, init);
   const [verState, verAction, verPending] = useActionState(verifyOtpAction, init);
+
   const step = verState.step ?? reqState.step ?? "phone";
   const phone = verState.phone ?? reqState.phone ?? "";
-  const error = verState.error ?? reqState.error;
+  const otpError = verState.error ?? reqState.error;
 
-  if (step === "code") {
+  if (method === "otp") {
+    if (step === "code") {
+      return (
+        <div className="space-y-4">
+          <form action={verAction} className="space-y-4" aria-label="Enter your login code">
+            <Notice tone="ok">
+              Verification code dispatched to {phone}. Enter the 6-digit OTP below.
+            </Notice>
+            {otpError && <Notice tone="danger">{otpError}</Notice>}
+
+            <input type="hidden" name="phone" value={phone} />
+            <Field
+              label="6-digit verification code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              required
+              icon={KeyRound}
+              placeholder="123456"
+              className="tracking-[0.4em] font-mono text-center font-bold text-lg"
+            />
+
+            <Button type="submit" className="w-full" size="lg" disabled={verPending}>
+              {verPending ? "Verifying…" : "Confirm Code & Enter"}
+            </Button>
+          </form>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <form action={reqAction} aria-label="Send a new code">
+              <input type="hidden" name="phone" value={phone} />
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs"
+                disabled={reqPending}
+              >
+                Did not receive code? Send a new code
+              </Button>
+            </form>
+            <button
+              type="button"
+              onClick={() => setMethod("password")}
+              className="text-xs text-brand hover:underline font-medium text-center"
+            >
+              ← Sign in with Phone &amp; Password instead
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="space-y-4">
-        <form action={verAction} className="space-y-4" aria-label="Enter your login code">
-          <Notice tone="ok">
-            Verification code dispatched to {phone}. Enter the 6-digit OTP below.
-          </Notice>
-          {error && <Notice tone="danger">{error}</Notice>}
+      <form action={reqAction} className="space-y-4" aria-label="Member OTP sign in">
+        {otpError && <Notice tone="danger">{otpError}</Notice>}
 
-          <input type="hidden" name="phone" value={phone} />
-          <Field
-            label="6-digit verification code"
-            name="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="\d{6}"
-            maxLength={6}
-            required
-            icon={KeyRound}
-            placeholder="123456"
-            className="tracking-[0.4em] font-mono text-center font-bold text-lg"
-          />
+        <Field
+          label="Mobile number"
+          name="phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="98765 43210"
+          defaultValue={phone}
+          required
+          icon={Phone}
+          hint="Registered 10-digit Indian mobile number"
+        />
 
-          <Button type="submit" className="w-full" size="lg" disabled={verPending}>
-            {verPending ? "Verifying…" : "Confirm Code & Enter"}
-          </Button>
-        </form>
-
-        <form action={reqAction} aria-label="Send a new code">
-          <input type="hidden" name="phone" value={phone} />
+        <div className="pt-2">
           <Button
             type="submit"
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs"
+            className="w-full"
+            size="lg"
+            iconRight={ArrowRight}
             disabled={reqPending}
           >
-            Did not receive code? Send a new code
+            {reqPending ? "Sending code…" : "Continue with OTP"}
           </Button>
-        </form>
-      </div>
+        </div>
+
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => setMethod("password")}
+            className="text-xs text-brand hover:underline font-medium"
+          >
+            ← Sign in with Password instead
+          </button>
+        </div>
+      </form>
     );
   }
 
+  // Primary Method: Phone Number + Password
   return (
-    <form action={reqAction} className="space-y-4" aria-label="Member sign in">
-      {error && <Notice tone="danger">{error}</Notice>}
+    <form action={pwAction} className="space-y-4" aria-label="Member sign in with password">
+      {pwState.error && <Notice tone="danger">{pwState.error}</Notice>}
 
       <Field
         label="Mobile number"
@@ -193,22 +252,64 @@ function MemberForm() {
         inputMode="tel"
         autoComplete="tel"
         placeholder="98765 43210"
-        defaultValue={phone}
         required
         icon={Phone}
         hint="Registered 10-digit Indian mobile number"
       />
 
+      <div className="space-y-1.5 text-left">
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="member-password"
+            className="block text-xs font-bold uppercase tracking-wider text-ink"
+          >
+            Password
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-ink-muted">
+            <Lock className="size-4" />
+          </div>
+          <input
+            id="member-password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            placeholder="••••••••••••"
+            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-12 text-sm text-ink transition-colors placeholder:text-ink-subtle focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </div>
+      </div>
+
       <div className="pt-2">
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          iconRight={ArrowRight}
-          disabled={reqPending}
-        >
-          {reqPending ? "Sending code…" : "Continue with OTP"}
+        <Button type="submit" className="w-full" size="lg" disabled={pwPending}>
+          {pwPending ? "Signing in…" : "Sign In to Gym"}
         </Button>
+      </div>
+
+      <div className="text-center pt-2">
+        <button
+          type="button"
+          onClick={() => setMethod("otp")}
+          className="text-xs text-ink-muted hover:text-brand transition-colors font-medium"
+        >
+          Have a login OTP? Sign in with OTP instead →
+        </button>
       </div>
     </form>
   );

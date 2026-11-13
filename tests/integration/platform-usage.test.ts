@@ -8,8 +8,12 @@ const ALLOWED = new Set([
   "src/server/audit.ts",
   "src/server/auth/sessions.ts",
   "src/server/auth/otp.ts",
+  "src/server/auth/member-auth.ts",
   "src/server/platform/admin.ts",
   "src/server/platform/registration.ts",
+  "src/server/admin/import.ts",
+  "src/server/admin/onboarding.ts",
+  "src/server/admin/provisioning.ts",
 ]);
 
 const walk = (dir: string): string[] =>

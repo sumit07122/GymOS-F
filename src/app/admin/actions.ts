@@ -136,3 +136,108 @@ export async function resetOwnerPasswordAction(form: FormData) {
   }
   redirect(`/admin?${result === "password-reset" ? "notice" : "error"}=${result}`);
 }
+
+export async function createOnboardingGymAction(form: FormData) {
+  const me = await requirePlatformAdmin();
+  const { createOnboardingGym } = await import("@/server/admin/onboarding");
+
+  let plans: Array<{ name: string; durationDays: number; priceInr: number; description?: string }> = [];
+  const rawPlans = value(form, "plansJson");
+  if (rawPlans) {
+    try {
+      plans = JSON.parse(rawPlans);
+    } catch {
+      // fallback to standard default plans
+    }
+  }
+
+  let operatingHours: Record<string, string> | undefined;
+  const rawHours = value(form, "operatingHoursJson");
+  if (rawHours) {
+    try {
+      operatingHours = JSON.parse(rawHours);
+    } catch {
+      // ignore invalid json
+    }
+  }
+
+  let res;
+  try {
+    res = await createOnboardingGym({
+      actorUserId: me.userId,
+      name: value(form, "name"),
+      slug: value(form, "slug"),
+      phone: value(form, "phone"),
+      address: value(form, "address"),
+      city: value(form, "city"),
+      state: value(form, "state") || undefined,
+      pinCode: value(form, "pinCode") || undefined,
+      gstNumber: value(form, "gstNumber") || undefined,
+      logo: value(form, "logo") || undefined,
+      ownerName: value(form, "ownerName"),
+      ownerEmail: value(form, "ownerEmail"),
+      ownerPhone: value(form, "ownerPhone"),
+      ownerPassword: String(form.get("ownerPassword") ?? ""),
+      operatingHours,
+      plans: plans.length > 0 ? plans : undefined,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "create-failed";
+    redirect(`/admin/onboard?error=${encodeURIComponent(msg)}`);
+  }
+
+  redirect(`/admin/onboard?gymId=${res.gymId}&step=import&notice=gym-profile-created`);
+}
+
+export async function commitImportAction(gymId: string, csvContent: string) {
+  const me = await requirePlatformAdmin();
+  const { previewMemberImport, commitMemberImport } = await import("@/server/admin/import");
+  const preview = await previewMemberImport(gymId, csvContent);
+  const commit = await commitMemberImport({
+    gymId,
+    actorUserId: me.userId,
+    filename: "member_import.csv",
+    validRows: preview.rows,
+  });
+
+  return {
+    totalRows: preview.totalRecords,
+    importedCount: commit.importedCount,
+    duplicateCount: preview.duplicateRecords,
+    errorCount: preview.invalidRecords,
+    errors: preview.rows
+      .filter((r) => !r.isValid)
+      .map((r) => ({
+        row: r.rowNumber,
+        error: r.errors.join(", "),
+        phone: r.phone,
+        name: r.fullName,
+      })),
+  };
+}
+
+export async function generateAccountsAction(gymId: string) {
+  const me = await requirePlatformAdmin();
+  const { generateMemberAccounts } = await import("@/server/admin/provisioning");
+  const result = await generateMemberAccounts(gymId, me.userId);
+  return {
+    createdCount: result.totalProvisioned,
+    credentials: result.credentials,
+  };
+}
+
+export async function regeneratePasswordAction(gymId: string, userId: string) {
+  const me = await requirePlatformAdmin();
+  const { regenerateMemberTemporaryPassword } = await import("@/server/admin/provisioning");
+  return regenerateMemberTemporaryPassword(gymId, userId, me.userId);
+}
+
+export async function activateWorkspaceAction(gymId: string, planId?: string) {
+  const me = await requirePlatformAdmin();
+  const { activateOnboardedGymWorkspace } = await import("@/server/admin/onboarding");
+  return activateOnboardedGymWorkspace({
+    gymId,
+    planId,
+    actorUserId: me.userId,
+  });
+}

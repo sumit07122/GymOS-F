@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ADMIN_NAV, Shell } from "@/components/shell";
 import {
   Button,
@@ -265,18 +266,26 @@ export default async function AdminHome({
         {/* Register Gym Form */}
         <div className="lg:col-span-7">
           <Card className="p-6">
-            <div className="flex items-center gap-3 border-b border-line pb-4 mb-5">
-              <div className="grid size-10 place-items-center rounded-xl bg-brand-light text-brand">
-                <Building2 className="size-5" />
+            <div className="flex items-center justify-between border-b border-line pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 place-items-center rounded-xl bg-brand-light text-brand">
+                  <Building2 className="size-5" />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-ink">
+                    Provision a New Gym
+                  </h2>
+                  <p className="text-xs text-ink-muted">
+                    Quick provision or launch the complete multi-step onboarding wizard
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-display text-base font-bold text-ink">
-                  Provision a New Gym
-                </h2>
-                <p className="text-xs text-ink-muted">
-                  Create a new gym workspace and assign the initial owner login
-                </p>
-              </div>
+              <Link
+                href="/admin/onboard"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-strong transition-all"
+              >
+                Onboarding Wizard →
+              </Link>
             </div>
 
             <form action={createGymAction} className="space-y-4">
@@ -477,6 +486,13 @@ export default async function AdminHome({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <Link
+                    href={`/admin/onboard?gymId=${gym.id}&step=import`}
+                    className="inline-flex items-center gap-1.5 h-9 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-ink hover:bg-canvas transition-colors shadow-xs"
+                  >
+                    Import &amp; Provision
+                  </Link>
+
                   {overview.plans.some((plan) => plan.active) && (
                     <form action={activateOrRenewAction} className="flex items-center gap-2">
                       <input type="hidden" name="gymId" value={gym.id} />
