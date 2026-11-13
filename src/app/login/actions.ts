@@ -38,12 +38,15 @@ export async function passwordLoginAction(_: FormState, form: FormData): Promise
   let r;
   try {
     r = await loginWithPassword({ email: str(form, "email"), password: str(form, "password"), ...(await reqInfo()) });
-  } catch {
+  } catch (err) {
+    console.error("[login:password:exception]", err);
     return { error: "Sign-in is temporarily unavailable. Please try again shortly." };
   }
   if (!r.ok) return { error: r.reason === "RATE_LIMITED" ? wait(r.retryAfterSec) : "Incorrect email or password." };
   await setSessionCookie(r.token, r.expiresAt);
-  redirect("/");
+  if (r.kind === "PLATFORM_ADMIN") redirect("/admin");
+  if (r.needsGymSelection) redirect("/select-gym");
+  redirect("/owner");
 }
 
 export async function memberPasswordLoginAction(_: FormState, form: FormData): Promise<FormState> {
