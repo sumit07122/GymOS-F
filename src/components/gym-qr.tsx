@@ -13,5 +13,6 @@ export function GymQr({ token, label }: { token: string; label: string }) {
     return () => { active = false; };
   }, [token]);
   if (!image) return <div role="status" className="grid aspect-square w-64 place-items-center border border-line text-sm text-muted">Preparing gym QR code…</div>;
+  // eslint-disable-next-line @next/next/no-img-element
   return <img src={image} alt={`Attendance QR code for ${label}`} className="aspect-square w-64 border border-line bg-white p-2" />;
 }

@@ -27,7 +27,7 @@ export default async function OwnerAttendancePage({ searchParams }: { searchPara
         </div>
       </section>
       <section>
-        <div className="flex items-end justify-between"><div><h2 className="font-display text-xl font-bold">Today's check-ins</h2><p className="mt-1 text-sm text-muted">{data.today.length} member{data.today.length === 1 ? "" : "s"} checked in today</p></div></div>
+        <div className="flex items-end justify-between"><div><h2 className="font-display text-xl font-bold">Today&apos;s check-ins</h2><p className="mt-1 text-sm text-muted">{data.today.length} member{data.today.length === 1 ? "" : "s"} checked in today</p></div></div>
         <div className="mt-3 divide-y divide-line border-y border-line">{data.today.map((entry) => <div key={entry.id} className="flex justify-between gap-4 py-3"><span className="font-medium">{entry.member.user.name}</span><time dateTime={entry.checkedInAt.toISOString()} className="text-sm text-muted">{new Intl.DateTimeFormat("en-IN", { timeStyle: "short", timeZone: data.gym.timezone }).format(entry.checkedInAt)}</time></div>)}{data.today.length === 0 && <p className="py-6 text-sm text-muted">No check-ins yet today.</p>}</div>
       </section>
       <section>

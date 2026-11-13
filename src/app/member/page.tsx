@@ -12,10 +12,12 @@ export default async function MemberHome() {
   const me = await requireGym({ roles: ["MEMBER"], access: "operational" });
   const data = await getMemberPortal(me.gymId, me.userId);
   if (!data?.member) return null;
+  // eslint-disable-next-line react-hooks/purity
+  const isExpiringSoon = Boolean(data.current && data.current.endsAt.getTime() - Date.now() <= 7 * 86_400_000);
   return (
     <Shell title={`Hi, ${data.member.name.split(" ")[0]}`} subtitle="Your gym membership" who={data.member.name} nav={MEMBER_NAV}>
       {!data.current && <Notice tone="warn">You do not have a current membership. Please contact your gym to renew.</Notice>}
-      {data.current && data.current.endsAt.getTime() - Date.now() <= 7 * 86_400_000 && <Notice tone="warn">Your membership ends {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(data.current.endsAt)}.</Notice>}
+      {isExpiringSoon && data.current && <Notice tone="warn">Your membership ends {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(data.current.endsAt)}.</Notice>}
       <section aria-label="Membership overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Membership", data.current?.plan.name ?? "No active plan"],
