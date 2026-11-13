@@ -4,6 +4,7 @@ import { withPlatform } from "../db";
 import { hitAll } from "../security/ratelimit";
 import { normalizeIndianPhone } from "../security/phone";
 import { hashPassword, passwordSchema } from "../security/password";
+import { sendRegistrationReceivedEmail, sendRegistrationApprovedEmail } from "../email";
 
 const requestSchema = z.object({
   gymName: z.string().trim().min(2).max(100),
@@ -30,7 +31,7 @@ export async function submitRegistrationRequest(raw: unknown, ip: string) {
     [`registration:email:${input.ownerEmail}`, { limit: 3, windowSec: 86400 }],
   ]);
   if (limit) throw new Error("RATE_LIMITED");
-  return withPlatform(async (tx) => {
+  const requestId = await withPlatform(async (tx) => {
     const request = await tx.gymRegistrationRequest.create({
       data: {
         gymName: input.gymName,
@@ -51,6 +52,14 @@ export async function submitRegistrationRequest(raw: unknown, ip: string) {
     });
     return request.id;
   });
+
+  sendRegistrationReceivedEmail({
+    ownerEmail: input.ownerEmail,
+    ownerName: input.ownerName,
+    gymName: input.gymName,
+  }).catch((err) => console.error("[email:registration:catch]", err));
+
+  return requestId;
 }
 
 export async function getPendingRegistrationRequests() {
@@ -59,7 +68,7 @@ export async function getPendingRegistrationRequests() {
 
 export async function approveRegistrationRequest(raw: unknown, actorUserId: string) {
   const input = approvalSchema.parse(raw);
-  return withPlatform(async (tx) => {
+  const result = await withPlatform(async (tx) => {
     const request = await tx.gymRegistrationRequest.findFirst({ where: { id: input.requestId, status: "PENDING" } });
     if (!request) throw new Error("REQUEST_NOT_FOUND");
     if (await tx.gym.findUnique({ where: { slug: input.slug }, select: { id: true } })) throw new Error("SLUG_TAKEN");
@@ -85,8 +94,17 @@ export async function approveRegistrationRequest(raw: unknown, actorUserId: stri
       entityId: request.id,
       metadata: { gymId: gym.id, ownerUserId: owner.id },
     });
-    return gym;
+    return { gym, ownerEmail: request.ownerEmail, ownerName: request.ownerName, gymName: request.gymName };
   });
+
+  sendRegistrationApprovedEmail({
+    ownerEmail: result.ownerEmail,
+    ownerName: result.ownerName,
+    gymName: result.gymName,
+    slug: input.slug,
+  }).catch((err) => console.error("[email:approval:catch]", err));
+
+  return result.gym;
 }
 
 export async function rejectRegistrationRequest(requestId: string, actorUserId: string) {

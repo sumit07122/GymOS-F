@@ -7,6 +7,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "check:security": "node scripts/verify-security.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
@@ -30,6 +31,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "resend": "^6.38.0",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   },

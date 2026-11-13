@@ -5,6 +5,8 @@ const schema = z.object({
   OTP_SECRET: z.string().min(32).optional(),
   SMS_PROVIDER: z.enum(["console", "none"]).default("none"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("FIXIA GymOS <onboarding@resend.dev>"),
 });
 
 export type Env = z.infer<typeof schema>;
