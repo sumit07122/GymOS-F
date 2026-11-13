@@ -44,3 +44,4 @@ This document establishes the visual language, design architecture, and frontend
 - **No Unstyled HTML**: Every button, input, table, and status badge must use styled system primitives.
 - **Always Accessible**: Include semantic labels (`aria-label`, `htmlFor`, accessible touch targets >= 44px).
 - **Error & Empty States**: Every data view must render a dedicated, polished empty state and a resilient loading skeleton.
+

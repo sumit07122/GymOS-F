@@ -91,3 +91,4 @@ for (const [skillName, desc] of Object.entries(descriptions)) {
   fs.writeFileSync(skillFile, content, "utf8");
   console.log(`Updated ${skillName} (${desc.length} chars)`);
 }
+

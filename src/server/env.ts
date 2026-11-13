@@ -3,7 +3,9 @@ import { z } from "zod";
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
   OTP_SECRET: z.string().min(32).optional(),
-  SMS_PROVIDER: z.enum(["console", "none"]).default("none"),
+  SMS_PROVIDER: z.enum(["console", "none", "msg91"]).default("none"),
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_TEMPLATE_ID: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("FIXIA GymOS <onboarding@resend.dev>"),
