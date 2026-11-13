@@ -57,3 +57,4 @@ Use this checklist before opening the platform to public gym signups and live me
 - [x] **Health Check Route**: `/api/health` live and responding with database latency.
 - [ ] **Uptime Monitor**: Set up an external ping monitor (e.g. BetterStack, UptimeRobot) pointing to `https://gymos-umber-nine.vercel.app/api/health`.
 - [ ] **Error Tracking**: Configure Sentry or Vercel Monitoring for unhandled server-side exceptions.
+
