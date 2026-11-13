@@ -72,3 +72,64 @@ describe("authorize", () => {
   });
   it("a session without a chosen gym is told to choose one", () => expect(reason({ kind: "NEEDS_GYM", ...base }, ownerOps)).toBe("NEEDS_GYM"));
 });
+
+describe("storage security and isolation", () => {
+  it("rejects unauthorized MIME types", async () => {
+    const { createPresignedUploadUrl } = await import("@/server/storage");
+    await expect(
+      createPresignedUploadUrl({
+        gymId: "gym-123",
+        scope: "avatar",
+        fileName: "malicious.exe",
+        contentType: "application/x-msdownload",
+      })
+    ).rejects.toThrow("UNSUPPORTED_MEDIA_TYPE");
+  });
+
+  it("rejects files exceeding size limit", async () => {
+    const { createPresignedUploadUrl } = await import("@/server/storage");
+    await expect(
+      createPresignedUploadUrl({
+        gymId: "gym-123",
+        scope: "avatar",
+        fileName: "huge.jpg",
+        contentType: "image/jpeg",
+        fileSizeBytes: 10 * 1024 * 1024, // 10MB exceeds 5MB limit
+      })
+    ).rejects.toThrow("FILE_TOO_LARGE");
+  });
+
+  it("prefixes storage keys with gymId to prevent cross-tenant collisions", async () => {
+    const { createPresignedUploadUrl } = await import("@/server/storage");
+    const result = await createPresignedUploadUrl({
+      gymId: "gym-abc",
+      scope: "logo",
+      fileName: "logo.png",
+      contentType: "image/png",
+    });
+    expect(result.storageKey.startsWith("gyms/gym-abc/logo/")).toBe(true);
+  });
+
+  it("prevents cross-tenant file access (IDOR)", async () => {
+    const { getPresignedViewUrl } = await import("@/server/storage");
+    // Gym A tries to view Gym B's receipt
+    await expect(
+      getPresignedViewUrl({
+        gymId: "gym-A",
+        storageKey: "gyms/gym-B/receipt/payment-receipt.pdf",
+      })
+    ).rejects.toThrow("UNAUTHORIZED_STORAGE_ACCESS");
+  });
+
+  it("prevents cross-tenant file deletion", async () => {
+    const { deleteStorageObject } = await import("@/server/storage");
+    // Gym A tries to delete Gym B's file
+    await expect(
+      deleteStorageObject({
+        gymId: "gym-A",
+        storageKey: "gyms/gym-B/logo/logo.png",
+      })
+    ).rejects.toThrow("UNAUTHORIZED_STORAGE_ACCESS");
+  });
+});
+

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import "./scripts/dns-preload.cjs";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },

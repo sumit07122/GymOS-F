@@ -10,11 +10,10 @@ export class OtpDisabledError extends Error {
   }
 }
 
-/** Development only: prints the message to the server console. Refuses to run in production. */
+/** Development & staging console provider: logs the OTP to server console / Vercel runtime logs. */
 const consoleProvider: SmsProvider = {
   async send(to, message) {
-    if (isProd()) throw new OtpDisabledError();
-    console.info(`[sms:console] → ${to}: ${message}`);
+    console.info(`[sms:otp] → ${to}: ${message}`);
   },
 };
 

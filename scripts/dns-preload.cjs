@@ -22,3 +22,4 @@ dns.lookup = function (hostname, options, callback) {
   }
   return origLookup(hostname, options, callback);
 };
+

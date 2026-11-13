@@ -7,6 +7,11 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("FIXIA GymOS <onboarding@resend.dev>"),
+  STORAGE_ENDPOINT: z.string().optional(),
+  STORAGE_ACCESS_KEY_ID: z.string().optional(),
+  STORAGE_SECRET_ACCESS_KEY: z.string().optional(),
+  STORAGE_BUCKET: z.string().default("uploads"),
+  STORAGE_REGION: z.string().default("ap-southeast-1"),
 });
 
 export type Env = z.infer<typeof schema>;

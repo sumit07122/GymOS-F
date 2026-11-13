@@ -6,6 +6,9 @@ const sql = (p: string) => readFileSync(new URL(`../../prisma/${p}`, import.meta
 
 /** Builds a fresh gymos_test database from the real migration files: what CI and production run. */
 export default async function setup() {
+  if (process.env.SKIP_GLOBAL_SETUP === "1" || process.env.SKIP_GLOBAL_SETUP === "true") {
+    return;
+  }
   const root = new Client({ connectionString: ADMIN_URL });
   await root.connect();
   await root.query(

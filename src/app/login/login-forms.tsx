@@ -31,11 +31,32 @@ export function LoginForms({ initialTab = "member" }: { initialTab?: "staff" | "
 
 function StaffForm() {
   const [state, action, pending] = useActionState(passwordLoginAction, init);
+  const [showPassword, setShowPassword] = useState(false);
   return (
     <form action={action} className="space-y-4" aria-label="Owner and admin sign in">
       {state.error && <Notice>{state.error}</Notice>}
       <Field label="Email" name="email" type="email" autoComplete="username" required />
-      <Field label="Password" name="password" type="password" autoComplete="current-password" required />
+      <div className="space-y-1.5">
+        <label htmlFor="password" className="block text-sm font-medium text-ink">Password</label>
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            className="h-11 w-full rounded-xl border border-line bg-surface px-3.5 pr-14 text-[15px] text-ink placeholder:text-muted/70 focus:border-deep focus:outline-none focus:ring-2 focus:ring-deep/20"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted hover:text-ink focus:outline-none cursor-pointer"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
+      </div>
       <Button type="submit" className="w-full" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</Button>
     </form>
   );
