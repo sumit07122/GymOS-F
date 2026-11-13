@@ -1,9 +1,25 @@
 import Link from "next/link";
 import { OWNER_NAV, Shell } from "@/components/shell";
-import { Notice } from "@/components/ui";
+import { Notice, StatCard, Card, Button, Badge } from "@/components/ui";
 import { requireGym } from "@/server/auth/guards";
 import { getOwnerDashboard } from "@/server/gyms/operations";
 import { formatInr } from "@/server/money";
+import {
+  Users,
+  UserCheck,
+  Clock,
+  UserX,
+  CalendarCheck,
+  IndianRupee,
+  AlertCircle,
+  UserPlus,
+  ArrowRight,
+  Activity,
+  CreditCard,
+  QrCode,
+  BarChart3,
+  Building2,
+} from "lucide-react";
 
 export const metadata = { title: "Gym dashboard" };
 export const dynamic = "force-dynamic";
@@ -13,36 +29,232 @@ export default async function OwnerHome() {
   const data = await getOwnerDashboard(me.gymId);
   if (!data) return null;
   const { gym } = data;
-  const shortcuts = [["Register a member", "/owner/members"], ["Set membership pricing", "/owner/plans"], ["Record a payment", "/owner/payments"], ["Open attendance desk", "/owner/attendance"]] as const;
+
+  const quickActions = [
+    {
+      title: "Register new member",
+      desc: "Add member details and assign plan",
+      href: "/owner/members",
+      icon: UserPlus,
+      variant: "primary" as const,
+    },
+    {
+      title: "Record member payment",
+      desc: "Log cash, UPI, or bank collections",
+      href: "/owner/payments",
+      icon: IndianRupee,
+      variant: "secondary" as const,
+    },
+    {
+      title: "Attendance scanner desk",
+      desc: "Display reception QR or view check-ins",
+      href: "/owner/attendance",
+      icon: QrCode,
+      variant: "secondary" as const,
+    },
+    {
+      title: "Manage membership plans",
+      desc: "Create and price membership tiers",
+      href: "/owner/plans",
+      icon: CreditCard,
+      variant: "secondary" as const,
+    },
+    {
+      title: "Business & revenue reports",
+      desc: "View collections and member growth",
+      href: "/owner/reports",
+      icon: BarChart3,
+      variant: "secondary" as const,
+    },
+  ];
+
   return (
-    <Shell title={gym.name} subtitle={gym.city ?? undefined} who={me.name} nav={OWNER_NAV}>
+    <Shell
+      title={gym.name}
+      subtitle={gym.city ? `${gym.city} &middot; Active Workspace` : "Active Workspace"}
+      who={me.name}
+      nav={OWNER_NAV}
+    >
       {me.gymAccess === "PENDING" && (
-        <Notice tone="warn">Your gym is waiting for activation by FIXIA. You can sign in and review your gym details; members, plans and payments unlock once your subscription is activated.</Notice>
+        <Notice tone="warn">
+          Your gym is waiting for activation by FIXIA Platform Admin. You can review your gym
+          details and settings; member registrations, plans, and payments will unlock once your
+          subscription is activated.
+        </Notice>
       )}
+
       {me.gymAccess === "EXPIRED" && (
-        <Notice tone="warn">Your GymOS subscription has expired. Please contact FIXIA to renew; operations are paused until then.</Notice>
+        <Notice tone="danger">
+          Your GymOS subscription has expired. Please contact FIXIA to renew; operational controls
+          are paused until renewal is complete.
+        </Notice>
       )}
+
       {me.gymAccess === "ACTIVE" && (
         <>
-          <section aria-label="Gym overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              ["Total members", data.totalMembers], ["Active memberships", data.activeMembers], ["New today", data.newMembers], ["Today's attendance", data.todayAttendance],
-              ["Collected this month", formatInr(data.collectionsInr)], ["Outstanding dues", formatInr(data.outstandingInr)], ["Expiring in 7 days", data.expiring], ["Expired memberships", data.expired],
-            ].map(([label, value]) => <div key={label} className="neo-card p-5"><p className="text-sm text-muted">{label}</p><p className="mt-2 font-display text-2xl font-extrabold tracking-tight">{value}</p></div>)}
+          {/* 8 Core KPIs Grid */}
+          <section aria-label="Gym performance overview" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Members"
+              value={data.totalMembers}
+              icon={Users}
+              tone="brand"
+              subtext="Registered in workspace"
+            />
+            <StatCard
+              label="Active Members"
+              value={data.activeMembers}
+              icon={UserCheck}
+              tone="success"
+              subtext="Current valid memberships"
+            />
+            <StatCard
+              label="Expiring in 7 Days"
+              value={data.expiring}
+              icon={Clock}
+              tone="warning"
+              subtext="Needs renewal outreach"
+            />
+            <StatCard
+              label="Expired Members"
+              value={data.expired}
+              icon={UserX}
+              tone="danger"
+              subtext="Inactive or pending renewal"
+            />
+            <StatCard
+              label="Today's Attendance"
+              value={data.todayAttendance}
+              icon={CalendarCheck}
+              tone="brand"
+              subtext="Check-ins recorded today"
+            />
+            <StatCard
+              label="Month Collections"
+              value={formatInr(data.collectionsInr)}
+              icon={IndianRupee}
+              tone="success"
+              subtext="Current calendar month"
+            />
+            <StatCard
+              label="Outstanding Dues"
+              value={formatInr(data.outstandingInr)}
+              icon={AlertCircle}
+              tone="warning"
+              subtext="Pending member balances"
+            />
+            <StatCard
+              label="New Today"
+              value={data.newMembers}
+              icon={UserPlus}
+              tone="brand"
+              subtext="Joined today"
+            />
           </section>
-          <section className="neo-card grid gap-8 p-5 sm:p-7 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <h2 className="font-display text-xl font-bold">Recent activity</h2>
-              <ul className="mt-3 divide-y divide-line border-y border-line">
-                {data.activity.map((item) => <li key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.action}</span><time className="text-muted" dateTime={item.createdAt.toISOString()}>{new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(item.createdAt)}</time></li>)}
-                {data.activity.length === 0 && <li className="py-4 text-sm text-muted">Member and payment activity will appear here.</li>}
-              </ul>
-            </div>
-            <div>
-              <h2 className="font-display text-xl font-bold">Quick actions</h2>
-              <div className="mt-3 grid gap-2">
-                {shortcuts.map(([label, href]) => <Link key={href} href={href} className="flex min-h-12 items-center justify-between border-b border-line py-3 font-medium hover:text-deep">{label}<span aria-hidden>→</span></Link>)}
+
+          {/* Quick Actions & Activity Section */}
+          <section className="grid gap-8 lg:grid-cols-12">
+            {/* Quick Action Shortcuts */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-bold text-ink">Quick Operations</h2>
+                <Badge tone="brand" size="sm">Workspace Shortcuts</Badge>
               </div>
+
+              <div className="grid gap-3">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Link key={action.href} href={action.href} className="group">
+                      <Card className="flex items-center justify-between p-4 transition-all duration-150 group-hover:border-brand/40 group-hover:shadow-md">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-light text-brand group-hover:bg-brand group-hover:text-white transition-colors">
+                            <Icon className="size-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-display text-sm font-bold text-ink group-hover:text-brand transition-colors">
+                              {action.title}
+                            </p>
+                            <p className="truncate text-xs text-ink-muted">{action.desc}</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="size-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-1 group-hover:text-brand" />
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Gym Operating Details Card */}
+              <Card className="p-5 mt-4 bg-surface-elevated">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="grid size-8 place-items-center rounded-lg bg-surface text-brand border border-line">
+                    <Building2 className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">Gym Details</h3>
+                    <p className="text-sm font-bold text-ink">{gym.name}</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs text-ink-muted border-t border-line/60 pt-3">
+                  <div className="flex justify-between">
+                    <span>Operating Timezone:</span>
+                    <span className="font-semibold text-ink">{gym.timezone}</span>
+                  </div>
+                  {gym.city && (
+                    <div className="flex justify-between">
+                      <span>City:</span>
+                      <span className="font-semibold text-ink">{gym.city}</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Recent Activity Timeline */}
+            <div className="lg:col-span-7">
+              <Card className="p-6">
+                <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid size-9 place-items-center rounded-xl bg-brand-light text-brand">
+                      <Activity className="size-5" />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-lg font-bold text-ink">Recent Activity</h2>
+                      <p className="text-xs text-ink-muted">Live audit events & member transactions</p>
+                    </div>
+                  </div>
+                  <Badge tone="neutral" size="sm">{data.activity.length} recent</Badge>
+                </div>
+
+                <div className="divide-y divide-line/60">
+                  {data.activity.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-4 py-3.5 first:pt-1 last:pb-1">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <span className="mt-1.5 size-2 rounded-full bg-brand shrink-0" aria-hidden />
+                        <p className="text-sm font-medium text-ink leading-relaxed">
+                          {item.action}
+                        </p>
+                      </div>
+                      <time
+                        dateTime={item.createdAt.toISOString()}
+                        className="shrink-0 text-xs font-medium text-ink-muted"
+                      >
+                        {new Intl.DateTimeFormat("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(item.createdAt)}
+                      </time>
+                    </div>
+                  ))}
+
+                  {data.activity.length === 0 && (
+                    <div className="py-12 text-center text-sm text-ink-muted">
+                      Member registrations, attendance check-ins, and payments will stream here in real time.
+                    </div>
+                  )}
+                </div>
+              </Card>
             </div>
           </section>
         </>

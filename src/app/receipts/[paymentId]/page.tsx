@@ -2,40 +2,185 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { OWNER_NAV, MEMBER_NAV, Shell } from "@/components/shell";
 import { PrintButton } from "@/components/print-button";
-import { Notice } from "@/components/ui";
+import { Notice, Card, Badge, Button } from "@/components/ui";
 import { requireGym } from "@/server/auth/guards";
 import { getPaymentReceipt } from "@/server/gyms/operations";
 import { formatInr } from "@/server/money";
+import {
+  Receipt,
+  Building2,
+  Calendar,
+  CreditCard,
+  Printer,
+  ArrowLeft,
+  ShieldCheck,
+  Phone,
+  MapPin,
+} from "lucide-react";
 
 export const metadata = { title: "Payment receipt" };
 export const dynamic = "force-dynamic";
 
-
-export default async function ReceiptPage({ params }: { params: Promise<{ paymentId: string }> }) {
+export default async function ReceiptPage({
+  params,
+}: {
+  params: Promise<{ paymentId: string }>;
+}) {
   const me = await requireGym({ roles: ["OWNER", "MEMBER"], access: "operational" });
   const { paymentId } = await params;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paymentId)) notFound();
-  const receipt = await getPaymentReceipt(me.gymId, paymentId, me.kind === "MEMBER" ? me.userId : undefined);
+
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      paymentId
+    )
+  ) {
+    notFound();
+  }
+
+  const receipt = await getPaymentReceipt(
+    me.gymId,
+    paymentId,
+    me.kind === "MEMBER" ? me.userId : undefined
+  );
+
   if (!receipt) notFound();
   const nav = me.kind === "MEMBER" ? MEMBER_NAV : OWNER_NAV;
+
   return (
-    <Shell title="Payment receipt" subtitle="GymOS payment record" who={me.name} nav={nav}>
-      {receipt.voidedAt && <Notice tone="warn">This payment was corrected and is no longer included in the outstanding balance.</Notice>}
-      <article className="mx-auto w-full max-w-xl border-y-2 border-forest bg-surface px-6 py-7 sm:px-9">
-        <div className="flex items-start justify-between gap-5"><div><p className="text-sm font-bold uppercase text-deep">{receipt.gym.name}</p><p className="mt-1 text-sm text-muted">{[receipt.gym.address, receipt.gym.city, receipt.gym.phone].filter(Boolean).join(" · ")}</p><h2 className="mt-4 font-display text-2xl font-extrabold">{receipt.membership.plan.name}</h2><p className="mt-1 text-sm text-muted">Payment receipt</p></div><p className="font-display text-xl font-bold">{formatInr(receipt.amountInr)}</p></div>
-        <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 border-t border-line pt-5 text-sm">
-          <dt className="text-muted">Member</dt><dd className="text-right font-medium">{receipt.member.user.name}</dd>
-          <dt className="text-muted">Mobile</dt><dd className="text-right">{receipt.member.user.phone}</dd>
-          <dt className="text-muted">Date</dt><dd className="text-right">{new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeStyle: "short" }).format(receipt.createdAt)}</dd>
-          <dt className="text-muted">Method</dt><dd className="text-right">{receipt.method}</dd>
-          {receipt.reference && <><dt className="text-muted">Reference</dt><dd className="text-right">{receipt.reference}</dd></>}
-          <dt className="text-muted">Status</dt><dd className="text-right">{receipt.voidedAt ? "Corrected / void" : "Recorded"}</dd>
-          {receipt.voidedAt && <><dt className="text-muted">Correction reason</dt><dd className="text-right">{receipt.voidReason}</dd></>}
-        </dl>
-        <div className="mt-6 flex justify-between border-t border-line pt-4"><span className="font-semibold">Amount recorded</span><strong>{formatInr(receipt.amountInr)}</strong></div>
-        <p className="mt-5 text-xs text-muted">Receipt reference: {receipt.id.toUpperCase()}</p>
-      </article>
-      <div className="mx-auto flex max-w-xl flex-wrap gap-3 print:hidden"><PrintButton label="Print receipt" /><Link href={me.kind === "MEMBER" ? "/member/payments" : "/owner/payments"} className="inline-flex h-11 items-center border border-line px-4 text-sm font-medium hover:bg-soft">Back to payments</Link></div>
+    <Shell
+      title="Payment Receipt"
+      subtitle="Official GymOS transaction receipt"
+      who={me.name}
+      nav={nav}
+    >
+      {/* Alert Notices */}
+      {receipt.voidedAt && (
+        <Notice tone="warn">
+          This payment was corrected/voided on the ledger and is no longer credited toward the membership balance.
+        </Notice>
+      )}
+
+      {/* Printable Receipt Card */}
+      <div className="mx-auto w-full max-w-xl">
+        <Card className="p-8 sm:p-10 border-2 border-line bg-white shadow-xl relative overflow-hidden">
+          {/* Top Brand & Gym Header */}
+          <div className="flex items-start justify-between gap-6 border-b border-line pb-6">
+            <div>
+              <div className="flex items-center gap-2 text-brand mb-1">
+                <Building2 className="size-4" />
+                <span className="text-xs font-black uppercase tracking-widest">
+                  {receipt.gym.name}
+                </span>
+              </div>
+              <h2 className="font-display text-xl font-black text-ink">
+                {receipt.membership.plan.name}
+              </h2>
+              <p className="text-xs text-ink-muted mt-1 space-y-0.5">
+                {[receipt.gym.address, receipt.gym.city, receipt.gym.phone]
+                  .filter(Boolean)
+                  .join(" &bull; ")}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <Badge
+                tone={receipt.voidedAt ? "danger" : "success"}
+                size="sm"
+                dot
+              >
+                {receipt.voidedAt ? "Voided" : "Confirmed"}
+              </Badge>
+              <p className="mt-2 font-display text-2xl font-black text-ink">
+                {formatInr(receipt.amountInr)}
+              </p>
+            </div>
+          </div>
+
+          {/* Details Table */}
+          <dl className="mt-6 grid grid-cols-2 gap-y-3.5 text-xs border-b border-line pb-6">
+            <dt className="text-ink-muted font-medium">Billed To Member</dt>
+            <dd className="text-right font-bold text-ink">
+              {receipt.member.user.name}
+            </dd>
+
+            <dt className="text-ink-muted font-medium">Mobile Contact</dt>
+            <dd className="text-right text-ink font-mono">
+              {receipt.member.user.phone}
+            </dd>
+
+            <dt className="text-ink-muted font-medium">Transaction Date</dt>
+            <dd className="text-right text-ink">
+              {new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "long",
+                timeStyle: "short",
+              }).format(receipt.createdAt)}
+            </dd>
+
+            <dt className="text-ink-muted font-medium">Payment Method</dt>
+            <dd className="text-right font-semibold text-ink">
+              {receipt.method}
+            </dd>
+
+            {receipt.reference && (
+              <>
+                <dt className="text-ink-muted font-medium">Reference Code</dt>
+                <dd className="text-right font-mono text-ink">
+                  {receipt.reference}
+                </dd>
+              </>
+            )}
+
+            {receipt.voidedAt && (
+              <>
+                <dt className="text-danger font-medium">Correction Reason</dt>
+                <dd className="text-right font-medium text-danger">
+                  {receipt.voidReason}
+                </dd>
+              </>
+            )}
+          </dl>
+
+          {/* Amount Paid Callout */}
+          <div className="mt-6 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-ink-muted block">
+                Total Amount Paid
+              </span>
+              <span className="text-[11px] text-ink-muted">
+                Zero balance remaining for this receipt
+              </span>
+            </div>
+            <strong className="font-display text-2xl font-black text-brand">
+              {formatInr(receipt.amountInr)}
+            </strong>
+          </div>
+
+          {/* Verification Code Footer */}
+          <div className="mt-8 border-t border-line/60 pt-4 flex flex-col sm:flex-row items-center justify-between text-[11px] text-ink-muted gap-2">
+            <span className="flex items-center gap-1.5 font-medium">
+              <ShieldCheck className="size-3.5 text-brand" />
+              Verified FIXIA GymOS Transaction
+            </span>
+            <span className="font-mono text-[10px]">
+              ID: {receipt.id.toUpperCase()}
+            </span>
+          </div>
+        </Card>
+
+        {/* Buttons Bar */}
+        <div className="mt-6 flex items-center justify-between print:hidden">
+          <Link
+            href={
+              me.kind === "MEMBER" ? "/member/payments" : "/owner/payments"
+            }
+          >
+            <Button variant="secondary" size="sm" icon={ArrowLeft}>
+              Back to Payments
+            </Button>
+          </Link>
+          <PrintButton label="Print Receipt" />
+        </div>
+      </div>
     </Shell>
   );
 }

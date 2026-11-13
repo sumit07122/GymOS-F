@@ -52,7 +52,13 @@ async function runLiveAudit() {
 
   try {
     // Clean up any previous test gyms
-    await directClient.query("DELETE FROM \"Gym\" WHERE slug IN ('audit-gym-a', 'audit-gym-b')");
+    await directClient.query(`
+      DELETE FROM "Attendance" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Payment" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Membership" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "GymUser" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b');
+    `);
 
     // Seed Gym A
     await directClient.query(
@@ -69,31 +75,35 @@ async function runLiveAudit() {
     );
 
     // Seed User A (Member of Gym A)
-    await directClient.query(
+    const uResA = await directClient.query(
       `INSERT INTO "User" (id, name, phone, status, "createdAt", "updatedAt")
        VALUES ($1, 'Member Alpha', '+919888880001', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT (phone) DO UPDATE SET name = 'Member Alpha' RETURNING id`,
       [userAId]
     );
+    const actualUserAId = uResA.rows[0].id;
+
     await directClient.query(
       `INSERT INTO "GymUser" ("gymId", "userId", role, status, "createdAt")
        VALUES ($1, $2, 'MEMBER', 'ACTIVE', CURRENT_TIMESTAMP)
        ON CONFLICT ("gymId", "userId") DO NOTHING`,
-      [gymAId, userAId]
+      [gymAId, actualUserAId]
     );
 
     // Seed User B (Member of Gym B)
-    await directClient.query(
+    const uResB = await directClient.query(
       `INSERT INTO "User" (id, name, phone, status, "createdAt", "updatedAt")
        VALUES ($1, 'Member Beta', '+919888880002', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT (phone) DO UPDATE SET name = 'Member Beta' RETURNING id`,
       [userBId]
     );
+    const actualUserBId = uResB.rows[0].id;
+
     await directClient.query(
       `INSERT INTO "GymUser" ("gymId", "userId", role, status, "createdAt")
        VALUES ($1, $2, 'MEMBER', 'ACTIVE', CURRENT_TIMESTAMP)
        ON CONFLICT ("gymId", "userId") DO NOTHING`,
-      [gymBId, userBId]
+      [gymBId, actualUserBId]
     );
 
     console.log("[PASS] 4. Multi-Tenant Test Environment seeded (Gym A & Gym B)");
@@ -140,14 +150,14 @@ async function runLiveAudit() {
     // First check-in
     await appClient.query(
       `INSERT INTO "Attendance" (id, "gymId", "userId", "localDate", "checkedInAt")
-       VALUES (gen_random_uuid(), '${gymAId}', '${userAId}', '${today}', CURRENT_TIMESTAMP)`
+       VALUES (gen_random_uuid(), '${gymAId}', '${actualUserAId}', '${today}', CURRENT_TIMESTAMP)`
     );
 
     // Duplicate check-in attempt on the same day
     try {
       await appClient.query(
         `INSERT INTO "Attendance" (id, "gymId", "userId", "localDate", "checkedInAt")
-         VALUES (gen_random_uuid(), '${gymAId}', '${userAId}', '${today}', CURRENT_TIMESTAMP)`
+         VALUES (gen_random_uuid(), '${gymAId}', '${actualUserAId}', '${today}', CURRENT_TIMESTAMP)`
       );
       console.error("[FAIL] Duplicate attendance check-in allowed on same date!");
       process.exit(1);
@@ -157,7 +167,13 @@ async function runLiveAudit() {
     await appClient.query("ROLLBACK");
 
     // Clean up test tenants
-    await directClient.query("DELETE FROM \"Gym\" WHERE slug IN ('audit-gym-a', 'audit-gym-b')");
+    await directClient.query(`
+      DELETE FROM "Attendance" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Payment" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Membership" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "GymUser" WHERE "gymId" IN (SELECT id FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b'));
+      DELETE FROM "Gym" WHERE slug IN ('audit-gym-a', 'audit-gym-b');
+    `);
     console.log("[PASS] 9. Clean-up completed cleanly");
 
   } finally {

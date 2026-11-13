@@ -1,175 +1,649 @@
 import { ADMIN_NAV, Shell } from "@/components/shell";
-import { Button, Field, Notice } from "@/components/ui";
+import {
+  Button,
+  Field,
+  SelectField,
+  Notice,
+  Card,
+  Badge,
+  StatCard,
+  Avatar,
+} from "@/components/ui";
 import { requirePlatformAdmin } from "@/server/auth/guards";
 import { deriveGymAccess } from "@/server/subscriptions/access";
 import { getAdminOverview } from "@/server/platform/admin";
 import { getPendingRegistrationRequests } from "@/server/platform/registration";
 import { formatInr } from "@/server/money";
-import { activateOrRenewAction, addOwnerAction, approveRegistrationAction, createGymAction, createPlanAction, rejectRegistrationAction, resetOwnerPasswordAction, setGymStatusAction, setSubscriptionPlanStatusAction } from "./actions";
+import {
+  activateOrRenewAction,
+  addOwnerAction,
+  approveRegistrationAction,
+  createGymAction,
+  createPlanAction,
+  rejectRegistrationAction,
+  resetOwnerPasswordAction,
+  setGymStatusAction,
+  setSubscriptionPlanStatusAction,
+} from "./actions";
+import {
+  ShieldCheck,
+  Building2,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  PlusCircle,
+  CreditCard,
+  UserCheck,
+  Activity,
+  KeyRound,
+  RefreshCw,
+  Archive,
+  UserPlus,
+} from "lucide-react";
 
 export const metadata = { title: "FIXIA Admin" };
 export const dynamic = "force-dynamic";
 
-const date = (value: Date) => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(value);
+const date = (value: Date) =>
+  new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(value);
 
-export default async function AdminHome({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string; registrationError?: string }> }) {
+export default async function AdminHome({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    error?: string;
+    notice?: string;
+    registrationError?: string;
+  }>;
+}) {
   const me = await requirePlatformAdmin();
-  const [{ error, notice, registrationError }, overview, requests] = await Promise.all([searchParams, getAdminOverview(), getPendingRegistrationRequests()]);
+  const [{ error, notice, registrationError }, overview, requests] =
+    await Promise.all([
+      searchParams,
+      getAdminOverview(),
+      getPendingRegistrationRequests(),
+    ]);
+
   const gyms = overview.gyms.map((gym) => ({
     ...gym,
-    access: deriveGymAccess({ gymStatus: gym.status, subscriptions: gym.subscriptions, now: new Date() }),
+    access: deriveGymAccess({
+      gymStatus: gym.status,
+      subscriptions: gym.subscriptions,
+      now: new Date(),
+    }),
     latest: gym.subscriptions[0],
   }));
-  const active = gyms.filter((gym) => gym.access === "ACTIVE").length;
-  const pending = gyms.filter((gym) => gym.access === "PENDING").length;
+
+  const activeCount = gyms.filter((gym) => gym.access === "ACTIVE").length;
+  const pendingCount = gyms.filter((gym) => gym.access === "PENDING").length;
+
   const errors: Record<string, string> = {
-    slug: "That gym URL is already in use.",
-    email: "An account already uses that owner email.",
+    slug: "That gym URL slug is already in use.",
+    email: "An account already exists with that owner email.",
     invalid: "Check the gym and owner details, then try again.",
-    plan: "Check the plan name, price, and duration.",
+    plan: "Check the plan name, price, and duration values.",
     subscription: "Choose an active plan and try again.",
     "gym-status": "The gym status could not be updated.",
     "plan-status": "The subscription plan status could not be updated.",
     owner: "The additional owner could not be added.",
     "owner-password": "Owner password could not be reset.",
   };
+
   const notices: Record<string, string> = {
     "gym-created": "Gym and owner account created. The gym is pending activation.",
     "plan-created": "Subscription plan created.",
     "subscription-updated": "Gym subscription activated or renewed.",
     "gym-status-updated": "Gym status updated.",
-    "request-approved": "Request approved. Gym and owner account created pending subscription activation.",
+    "request-approved":
+      "Request approved. Gym and owner account created pending subscription activation.",
     "request-rejected": "Registration request rejected.",
     "plan-status-updated": "Subscription plan status updated.",
     "owner-created": "Additional gym owner added.",
-    "password-reset": "Owner password reset. Their existing sessions have been signed out.",
+    "password-reset":
+      "Owner password reset. Their existing sessions have been signed out.",
   };
+
   const registrationErrors: Record<string, string> = {
-    slug: "That workspace URL is already in use.",
+    slug: "That workspace URL slug is already in use.",
     password: "Set a temporary password to create a new owner account.",
-    account: "The existing account is disabled or cannot be assigned as a gym owner.",
+    account:
+      "The existing account is disabled or cannot be assigned as a gym owner.",
     request: "That request is no longer pending or could not be reviewed.",
   };
 
   return (
-    <Shell title="FIXIA Admin" subtitle="Gym accounts and platform subscriptions" who={me.name} nav={ADMIN_NAV}>
-      {error && errors[error] && <Notice>{errors[error]}</Notice>}
+    <Shell
+      title="FIXIA Platform Command Center"
+      subtitle="Multi-tenant gym accounts, subscriptions, and platform governance"
+      who={me.name}
+      nav={ADMIN_NAV}
+    >
+      {/* Alert Notices */}
+      {error && errors[error] && <Notice tone="danger">{errors[error]}</Notice>}
       {notice && notices[notice] && <Notice tone="ok">{notices[notice]}</Notice>}
 
+      {/* Platform KPIs */}
       <section aria-label="Platform overview" className="grid gap-4 sm:grid-cols-3">
-        {[["Registered gyms", gyms.length], ["Operational", active], ["Awaiting activation", pending]].map(([label, count]) => (
-          <div key={label} className="neo-card p-5">
-            <p className="text-sm text-muted">{label}</p><p className="mt-1 font-display text-2xl font-bold">{count}</p>
+        <StatCard
+          label="Registered Gyms"
+          value={gyms.length}
+          icon={Building2}
+          tone="brand"
+          subtext="Total onboarded workspaces"
+        />
+        <StatCard
+          label="Active & Operational"
+          value={activeCount}
+          icon={CheckCircle2}
+          tone="success"
+          subtext="Valid active subscriptions"
+        />
+        <StatCard
+          label="Awaiting Activation"
+          value={pendingCount}
+          icon={Clock}
+          tone="warning"
+          subtext="Pending payment or admin review"
+        />
+      </section>
+
+      {/* Pending Registration Requests */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between border-b border-line pb-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 place-items-center rounded-xl bg-warning-soft text-warning">
+              <Clock className="size-5" />
+            </div>
+            <div>
+              <h2 className="font-display text-base font-bold text-ink">
+                Pending Registration Requests
+              </h2>
+              <p className="text-xs text-ink-muted">
+                Review owner submissions, assign URL slug, and provision workspace
+              </p>
+            </div>
           </div>
-        ))}
-      </section>
+          <Badge tone="warning" size="sm">
+            {requests.length} pending
+          </Badge>
+        </div>
 
-      <section className="neo-card p-5 sm:p-7">
-        <div className="flex items-end justify-between gap-4"><div><h2 className="font-display text-xl font-bold">Registration requests</h2><p className="mt-1 text-sm text-muted">Review owner details, then create the workspace and account.</p></div><span className="text-sm text-muted">{requests.length} pending</span></div>
-        {registrationError && registrationErrors[registrationError] && <div className="mt-4"><Notice>{registrationErrors[registrationError]}</Notice></div>}
-        <div className="mt-4 divide-y divide-line border-y border-line">
+        {registrationError && registrationErrors[registrationError] && (
+          <div className="mb-4">
+            <Notice tone="danger">{registrationErrors[registrationError]}</Notice>
+          </div>
+        )}
+
+        <div className="space-y-4 divide-y divide-line/60">
           {requests.map((request) => {
-            const slug = request.gymName.normalize("NFKD").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-gym";
-            return <article key={request.id} className="grid gap-5 py-5 lg:grid-cols-[0.8fr_1.2fr]">
-              <div><h3 className="font-semibold">{request.gymName}</h3><p className="mt-1 text-sm text-muted">{request.ownerName} · {request.ownerEmail}</p><p className="text-sm text-muted">{request.ownerPhone} · {request.city || "City not provided"}</p>{request.address && <p className="mt-2 text-sm text-muted">{request.address}</p>}{request.notes && <p className="mt-2 whitespace-pre-wrap text-sm">{request.notes}</p>}<p className="mt-2 text-xs text-muted">Submitted {date(request.createdAt)}</p></div>
-              <div className="flex flex-wrap items-end gap-3">
-                <form action={approveRegistrationAction} className="grid flex-1 gap-3 sm:grid-cols-2">
-                  <input type="hidden" name="requestId" value={request.id} />
-                  <Field label="Workspace slug" name="slug" defaultValue={slug} required pattern="[a-z0-9]+(-[a-z0-9]+)*" />
-                  <Field label="Temporary password for a new owner" name="ownerPassword" type="password" minLength={10} maxLength={128} hint="Leave blank to link the email to an existing account." />
-                  <div className="sm:col-span-2"><Button type="submit">Approve and create pending gym</Button></div>
-                </form>
-                <form action={rejectRegistrationAction}><input type="hidden" name="requestId" value={request.id} /><Button type="submit" variant="ghost">Reject</Button></form>
-              </div>
-            </article>;
-          })}
-          {requests.length === 0 && <p className="py-6 text-sm text-muted">No pending registration requests.</p>}
-        </div>
-      </section>
+            const slug =
+              request.gymName
+                .normalize("NFKD")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "")
+                .slice(0, 60) || "new-gym";
 
-      <section className="neo-card grid gap-8 p-5 sm:p-7 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
-          <h2 className="font-display text-xl font-bold">Register a gym</h2>
-          <p className="mb-5 mt-1 text-sm text-muted">Creates a pending workspace and its first owner login.</p>
-          <form action={createGymAction} className="grid gap-4 sm:grid-cols-2">
-            <Field label="Gym name" name="name" required maxLength={100} />
-            <Field label="Workspace URL slug" name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" hint="Lowercase letters, numbers, and hyphens." />
-            <Field label="Gym phone" name="phone" type="tel" />
-            <Field label="City" name="city" />
-            <div className="sm:col-span-2"><Field label="Address" name="address" /></div>
-            <div className="sm:col-span-2 mt-2 border-t border-line pt-4"><h3 className="font-semibold">Owner login</h3></div>
-            <Field label="Owner name" name="ownerName" required />
-            <Field label="Owner email" name="ownerEmail" type="email" required />
-            <div className="sm:col-span-2"><Field label="Temporary password" name="ownerPassword" type="password" minLength={10} maxLength={128} required hint="At least 10 characters. Share it with the owner securely." /></div>
-            <div className="sm:col-span-2"><Button type="submit">Create pending gym</Button></div>
-          </form>
-        </div>
-
-        <div className="border-t border-line pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-          <h2 className="font-display text-xl font-bold">Subscription plans</h2>
-          <p className="mb-5 mt-1 text-sm text-muted">FIXIA sets the price and duration for each plan.</p>
-          <form action={createPlanAction} className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2"><Field label="Plan name" name="name" required maxLength={80} /></div>
-            <Field label="Price (INR)" name="priceInr" type="number" min="0" step="0.01" required />
-            <Field label="Duration (days)" name="durationDays" type="number" min="1" max="3650" step="1" required />
-            <div className="sm:col-span-2"><Button type="submit">Add plan</Button></div>
-          </form>
-          <ul className="mt-6 divide-y divide-line border-y border-line">
-            {overview.plans.map((plan) => <li key={plan.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><span>{plan.name} · {plan.durationDays} days · <strong>{formatInr(plan.priceInr)}</strong>{plan.active ? "" : " · archived"}</span><form action={setSubscriptionPlanStatusAction}><input type="hidden" name="planId" value={plan.id} /><input type="hidden" name="active" value={String(!plan.active)} /><Button variant="ghost" type="submit" className="h-8 px-3 text-xs">{plan.active ? "Archive" : "Reactivate"}</Button></form></li>)}
-            {overview.plans.length === 0 && <li className="py-3 text-sm text-muted">No subscription plans yet.</li>}
-          </ul>
-        </div>
-      </section>
-
-      <section className="neo-card p-5 sm:p-7">
-        <div className="flex items-end justify-between gap-4">
-          <div><h2 className="font-display text-xl font-bold">Gym accounts</h2><p className="mt-1 text-sm text-muted">Activation and renewal history stays attached to each gym.</p></div>
-          <span className="text-sm text-muted">{gyms.length} total</span>
-        </div>
-        <div className="mt-4 divide-y divide-line border-y border-line">
-          {gyms.map((gym) => (
-            <article key={gym.id} className="grid gap-4 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div>
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h3 className="font-semibold">{gym.name}</h3><span className="text-sm text-muted">/{gym.slug}</span>
-                  <span className="rounded-sm bg-soft px-2 py-0.5 text-xs font-semibold text-deeper">{gym.access}</span>
+            return (
+              <div
+                key={request.id}
+                className="grid gap-5 pt-4 first:pt-0 lg:grid-cols-12 items-start"
+              >
+                <div className="lg:col-span-5 space-y-1 text-sm">
+                  <h3 className="font-display font-bold text-base text-ink">
+                    {request.gymName}
+                  </h3>
+                  <p className="text-xs text-ink-muted">
+                    {request.ownerName} &middot;{" "}
+                    <strong className="text-ink">{request.ownerEmail}</strong>
+                  </p>
+                  <p className="text-xs text-ink-muted">
+                    {request.ownerPhone} &middot; {request.city || "City not provided"}
+                  </p>
+                  {request.address && (
+                    <p className="text-xs text-ink-muted">{request.address}</p>
+                  )}
+                  {request.notes && (
+                    <p className="mt-2 text-xs bg-surface-elevated p-2 rounded-lg border border-line text-ink">
+                      &ldquo;{request.notes}&rdquo;
+                    </p>
+                  )}
+                  <p className="text-[11px] text-ink-subtle mt-1">
+                    Submitted on {date(request.createdAt)}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-muted">{gym.city || "City not set"} · {gym.gymUsers.map((entry) => `${entry.user.name} (${entry.user.email ?? "no email"})`).join(", ") || "No owner assigned"}</p>
-                <p className="mt-1 text-xs text-muted">{gym.latest ? `${gym.latest.plan.name} · ends ${date(gym.latest.endsAt)}` : "No subscription"}</p>
-              </div>
-              <div className="flex flex-wrap items-end gap-3">
-                {overview.plans.some((plan) => plan.active) && (
-                  <form action={activateOrRenewAction} className="flex items-end gap-2">
-                    <input type="hidden" name="gymId" value={gym.id} />
-                    <label className="grid gap-1 text-xs font-medium text-muted">Plan<select name="planId" required className="h-10 min-w-36 rounded-lg border border-line bg-surface px-2 text-sm text-ink">{overview.plans.filter((plan) => plan.active).map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
-                    <Button type="submit" className="h-10 px-3 text-sm">{gym.access === "ACTIVE" ? "Renew" : "Activate"}</Button>
+
+                <div className="lg:col-span-7 flex flex-wrap items-end gap-3">
+                  <form
+                    action={approveRegistrationAction}
+                    className="grid flex-1 gap-3 sm:grid-cols-2"
+                  >
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <Field
+                      label="Workspace slug"
+                      name="slug"
+                      defaultValue={slug}
+                      required
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                    />
+                    <Field
+                      label="Temporary password"
+                      name="ownerPassword"
+                      type="password"
+                      minLength={10}
+                      maxLength={128}
+                      hint="Leave blank if email already has account"
+                    />
+                    <div className="sm:col-span-2">
+                      <Button type="submit" size="sm" className="w-full">
+                        Approve & Provision Gym
+                      </Button>
+                    </div>
                   </form>
-                )}
-                {gym.status !== "SUSPENDED" ? (
-                  <form action={setGymStatusAction}><input type="hidden" name="gymId" value={gym.id} /><input type="hidden" name="suspended" value="true" /><Button type="submit" variant="ghost" className="h-10 px-3 text-sm">Suspend</Button></form>
-                ) : (
-                  <form action={setGymStatusAction}><input type="hidden" name="gymId" value={gym.id} /><input type="hidden" name="suspended" value="false" /><Button type="submit" variant="ghost" className="h-10 px-3 text-sm">Reactivate</Button></form>
-                )}
+
+                  <form action={rejectRegistrationAction}>
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <Button variant="ghost" size="sm" type="submit" className="text-danger">
+                      Reject
+                    </Button>
+                  </form>
+                </div>
               </div>
-              <details className="lg:col-span-2"><summary className="cursor-pointer text-sm font-medium text-deep">Manage gym owners</summary>
-                <div className="mt-4 grid gap-6 border-l-2 border-line pl-4 md:grid-cols-2">
-                  <div className="space-y-4">{gym.gymUsers.map((entry) => <div key={entry.userId} className="border-b border-line pb-3"><p className="text-sm font-semibold">{entry.user.name}</p><p className="text-xs text-muted">{entry.user.email ?? "No email"}</p><form action={resetOwnerPasswordAction} className="mt-2 flex flex-wrap items-end gap-2"><input type="hidden" name="gymId" value={gym.id} /><input type="hidden" name="ownerUserId" value={entry.userId} /><label className="grid gap-1 text-xs">New temporary password<input name="password" type="password" minLength={10} maxLength={128} required className="h-9 rounded-lg border border-line bg-surface px-2 text-sm" /></label><Button variant="ghost" type="submit" className="h-9 px-3 text-xs">Reset password</Button></form></div>)}</div>
-                  <form action={addOwnerAction} className="grid gap-3 sm:grid-cols-2"><input type="hidden" name="gymId" value={gym.id} /><Field label="Owner name" name="name" required maxLength={80} /><Field label="Owner email" name="email" type="email" required /><div className="sm:col-span-2"><Field label="Temporary password for a new account" name="password" type="password" minLength={10} maxLength={128} hint="Leave blank to link an existing account." /></div><div className="sm:col-span-2"><Button variant="ghost" type="submit">Add owner</Button></div></form>
+            );
+          })}
+
+          {requests.length === 0 && (
+            <div className="py-8 text-center text-sm text-ink-muted">
+              No pending registration requests waiting for review.
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Manual Gym Registration & Platform SaaS Subscription Plans */}
+      <section className="grid gap-8 lg:grid-cols-12 items-start">
+        {/* Register Gym Form */}
+        <div className="lg:col-span-7">
+          <Card className="p-6">
+            <div className="flex items-center gap-3 border-b border-line pb-4 mb-5">
+              <div className="grid size-10 place-items-center rounded-xl bg-brand-light text-brand">
+                <Building2 className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold text-ink">
+                  Provision a New Gym
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Create a new gym workspace and assign the initial owner login
+                </p>
+              </div>
+            </div>
+
+            <form action={createGymAction} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Gym business name" name="name" required maxLength={100} />
+                <Field
+                  label="Workspace URL slug"
+                  name="slug"
+                  required
+                  pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                  placeholder="e.g. matrix-gym"
+                  hint="Lowercase letters, numbers, and hyphens"
+                />
+                <Field label="Gym contact phone" name="phone" type="tel" />
+                <Field label="City" name="city" />
+                <div className="sm:col-span-2">
+                  <Field label="Address" name="address" />
+                </div>
+              </div>
+
+              <div className="border-t border-line/60 pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-ink mb-3">
+                  Initial Owner Account
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Owner full name" name="ownerName" required />
+                  <Field label="Owner email" name="ownerEmail" type="email" required />
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Temporary password"
+                      name="ownerPassword"
+                      type="password"
+                      minLength={10}
+                      maxLength={128}
+                      required
+                      hint="At least 10 characters. Securely share with gym owner."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button type="submit" icon={PlusCircle} className="w-full">
+                  Create Pending Gym Workspace
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+
+        {/* Subscription Plans Manager */}
+        <div className="lg:col-span-5">
+          <Card className="p-6">
+            <div className="flex items-center gap-3 border-b border-line pb-4 mb-5">
+              <div className="grid size-10 place-items-center rounded-xl bg-brand-light text-brand">
+                <CreditCard className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold text-ink">
+                  SaaS Plans & Pricing
+                </h2>
+                <p className="text-xs text-ink-muted">Platform-level tiers for gyms</p>
+              </div>
+            </div>
+
+            <form action={createPlanAction} className="space-y-3">
+              <Field
+                label="Plan name"
+                name="name"
+                required
+                maxLength={80}
+                placeholder="e.g. Annual Growth Tier"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="Price (INR)"
+                  name="priceInr"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="9999.00"
+                />
+                <Field
+                  label="Duration (days)"
+                  name="durationDays"
+                  type="number"
+                  min="1"
+                  max="3650"
+                  step="1"
+                  required
+                  placeholder="365"
+                />
+              </div>
+              <Button type="submit" variant="secondary" size="sm" className="w-full">
+                Add Platform Plan
+              </Button>
+            </form>
+
+            <div className="mt-6 border-t border-line pt-4 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                Active Catalog ({overview.plans.length})
+              </span>
+              <div className="divide-y divide-line/60">
+                {overview.plans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="flex items-center justify-between py-2.5 text-xs first:pt-1 last:pb-1"
+                  >
+                    <div>
+                      <strong className="text-ink">{plan.name}</strong>
+                      <span className="text-ink-muted block mt-0.5">
+                        {plan.durationDays} days &middot; {formatInr(plan.priceInr)}
+                      </span>
+                    </div>
+                    <form action={setSubscriptionPlanStatusAction}>
+                      <input type="hidden" name="planId" value={plan.id} />
+                      <input
+                        type="hidden"
+                        name="active"
+                        value={String(!plan.active)}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="submit"
+                        className="h-7 px-2 text-[11px]"
+                      >
+                        {plan.active ? "Archive" : "Reactivate"}
+                      </Button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Gym Accounts Directory Table */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between border-b border-line px-6 py-4 bg-surface-elevated/40">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-4 text-brand" />
+            <h3 className="font-display text-base font-bold text-ink">
+              Gym Accounts Register
+            </h3>
+          </div>
+          <Badge tone="brand" size="sm">
+            {gyms.length} total workspaces
+          </Badge>
+        </div>
+
+        <div className="divide-y divide-line/60">
+          {gyms.map((gym) => (
+            <div key={gym.id} className="p-6 transition-colors hover:bg-surface-elevated/40">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h4 className="font-display text-lg font-bold text-ink">
+                      {gym.name}
+                    </h4>
+                    <span className="text-xs font-mono text-ink-muted bg-surface-elevated px-2 py-0.5 rounded border border-line">
+                      /{gym.slug}
+                    </span>
+                    <Badge
+                      tone={
+                        gym.access === "ACTIVE"
+                          ? "success"
+                          : gym.access === "PENDING"
+                          ? "warning"
+                          : "danger"
+                      }
+                      size="sm"
+                      dot
+                    >
+                      {gym.access}
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs text-ink-muted mt-1">
+                    {gym.city || "City not set"} &middot; Owners:{" "}
+                    {gym.gymUsers
+                      .map(
+                        (entry) =>
+                          `${entry.user.name} (${entry.user.email ?? "no email"})`
+                      )
+                      .join(", ") || "No owner assigned"}
+                  </p>
+
+                  <p className="text-xs text-brand font-medium mt-1">
+                    {gym.latest
+                      ? `${gym.latest.plan.name} &middot; Subscription ends ${date(
+                          gym.latest.endsAt
+                        )}`
+                      : "No subscription plan assigned yet"}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {overview.plans.some((plan) => plan.active) && (
+                    <form action={activateOrRenewAction} className="flex items-center gap-2">
+                      <input type="hidden" name="gymId" value={gym.id} />
+                      <select
+                        name="planId"
+                        required
+                        className="h-9 rounded-xl border border-line bg-surface px-2.5 text-xs text-ink focus:border-brand focus:outline-none"
+                      >
+                        {overview.plans
+                          .filter((plan) => plan.active)
+                          .map((plan) => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name} ({plan.durationDays}d)
+                            </option>
+                          ))}
+                      </select>
+                      <Button type="submit" size="sm" className="h-9 text-xs">
+                        {gym.access === "ACTIVE" ? "Renew" : "Activate"}
+                      </Button>
+                    </form>
+                  )}
+
+                  {gym.status !== "SUSPENDED" ? (
+                    <form action={setGymStatusAction}>
+                      <input type="hidden" name="gymId" value={gym.id} />
+                      <input type="hidden" name="suspended" value="true" />
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 text-xs text-danger"
+                      >
+                        Suspend
+                      </Button>
+                    </form>
+                  ) : (
+                    <form action={setGymStatusAction}>
+                      <input type="hidden" name="gymId" value={gym.id} />
+                      <input type="hidden" name="suspended" value="false" />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        size="sm"
+                        className="h-9 text-xs"
+                      >
+                        Reactivate
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              </div>
+
+              {/* Owner Management Collapsible */}
+              <details className="mt-4 border-t border-line/60 pt-3">
+                <summary className="cursor-pointer text-xs font-bold text-brand hover:underline flex items-center gap-1.5">
+                  <UserPlus className="size-3.5" />
+                  Manage Gym Owners & Password Resets
+                </summary>
+
+                <div className="mt-4 grid gap-6 border-l-2 border-brand/30 pl-4 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                      Existing Owners
+                    </span>
+                    {gym.gymUsers.map((entry) => (
+                      <div
+                        key={entry.userId}
+                        className="rounded-xl border border-line bg-surface p-3 space-y-2"
+                      >
+                        <p className="text-sm font-bold text-ink">{entry.user.name}</p>
+                        <p className="text-xs text-ink-muted">
+                          {entry.user.email ?? "No email"}
+                        </p>
+                        <form
+                          action={resetOwnerPasswordAction}
+                          className="flex flex-wrap items-end gap-2 pt-1"
+                        >
+                          <input type="hidden" name="gymId" value={gym.id} />
+                          <input
+                            type="hidden"
+                            name="ownerUserId"
+                            value={entry.userId}
+                          />
+                          <input
+                            name="password"
+                            type="password"
+                            minLength={10}
+                            maxLength={128}
+                            required
+                            placeholder="New temp password (10+)"
+                            className="h-8 rounded-lg border border-line bg-surface px-2.5 text-xs text-ink"
+                          />
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            type="submit"
+                            icon={KeyRound}
+                            className="h-8 text-xs"
+                          >
+                            Reset Password
+                          </Button>
+                        </form>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink-muted block mb-2">
+                      Add Additional Owner
+                    </span>
+                    <form action={addOwnerAction} className="space-y-3 bg-surface p-4 rounded-xl border border-line">
+                      <input type="hidden" name="gymId" value={gym.id} />
+                      <Field label="Owner name" name="name" required maxLength={80} />
+                      <Field label="Owner email" name="email" type="email" required />
+                      <Field
+                        label="Temporary password"
+                        name="password"
+                        type="password"
+                        minLength={10}
+                        maxLength={128}
+                        hint="Leave blank to link existing account"
+                      />
+                      <Button variant="secondary" size="sm" type="submit" className="w-full">
+                        Add Owner to Gym
+                      </Button>
+                    </form>
+                  </div>
                 </div>
               </details>
-            </article>
+            </div>
           ))}
-          {gyms.length === 0 && <p className="py-8 text-sm text-muted">No gyms have been registered.</p>}
-        </div>
-      </section>
 
-      <section className="neo-card p-5 sm:p-7">
-        <h2 className="font-display text-xl font-bold">Recent platform activity</h2>
-        <ul className="mt-3 divide-y divide-line border-y border-line">
-          {overview.activity.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span>{item.action}</span><time className="text-muted" dateTime={item.createdAt.toISOString()}>{date(item.createdAt)}</time></li>)}
-          {overview.activity.length === 0 && <li className="py-3 text-sm text-muted">No platform events yet.</li>}
-        </ul>
-      </section>
+          {gyms.length === 0 && (
+            <div className="py-12 text-center text-sm text-ink-muted">
+              No gyms have been onboarded yet on the platform.
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Platform Activity Feed */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 border-b border-line pb-4 mb-4">
+          <Activity className="size-4 text-brand" />
+          <h2 className="font-display text-base font-bold text-ink">
+            Recent Platform Audit Trail
+          </h2>
+        </div>
+        <div className="divide-y divide-line/60">
+          {overview.activity.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between py-3 text-xs first:pt-1 last:pb-1"
+            >
+              <span className="text-ink font-medium">{item.action}</span>
+              <time dateTime={item.createdAt.toISOString()} className="text-ink-muted">
+                {date(item.createdAt)}
+              </time>
+            </div>
+          ))}
+          {overview.activity.length === 0 && (
+            <div className="py-6 text-center text-sm text-ink-muted">
+              No platform events recorded yet.
+            </div>
+          )}
+        </div>
+      </Card>
     </Shell>
   );
 }
