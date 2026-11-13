@@ -111,3 +111,4 @@ export async function sendRegistrationApprovedEmail(params: {
     text: `Hi ${params.ownerName},\n\nYour gym ${params.gymName} is approved on FIXIA GymOS!\n\nSign in here: ${loginUrl}\nEmail: ${params.ownerEmail}\n\n— FIXIA GymOS Team`,
   });
 }
+

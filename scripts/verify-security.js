@@ -31,3 +31,4 @@ if (o1.length === 0 && o2.length === 0) {
 } else {
   process.exit(1);
 }
+

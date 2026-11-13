@@ -10,6 +10,7 @@
     "check:security": "node scripts/verify-security.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:deploy": "node scripts/deploy-to-neon.js",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test": "vitest run",
     "admin:create": "tsx --env-file=.env scripts/create-admin.ts",
