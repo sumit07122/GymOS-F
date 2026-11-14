@@ -39,8 +39,9 @@ export async function passwordLoginAction(_: FormState, form: FormData): Promise
   try {
     r = await loginWithPassword({ email: str(form, "email"), password: str(form, "password"), ...(await reqInfo()) });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("[login:password:exception]", err);
-    return { error: "Sign-in is temporarily unavailable. Please try again shortly." };
+    return { error: `Sign-in error: ${msg}` };
   }
   if (!r.ok) return { error: r.reason === "RATE_LIMITED" ? wait(r.retryAfterSec) : "Incorrect email or password." };
   await setSessionCookie(r.token, r.expiresAt);
@@ -55,8 +56,10 @@ export async function memberPasswordLoginAction(_: FormState, form: FormData): P
   let r;
   try {
     r = await loginMemberWithPassword({ phone, password, ...(await reqInfo()) });
-  } catch {
-    return { error: "Sign-in is temporarily unavailable. Please try again shortly." };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[login:memberPassword:exception]", err);
+    return { error: `Sign-in error: ${msg}` };
   }
   if (!r.ok) {
     if (r.reason === "RATE_LIMITED") return { error: wait(r.retryAfterSec) };
