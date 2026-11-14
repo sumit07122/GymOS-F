@@ -26,12 +26,31 @@ export type FormState = {
   message?: string;
 };
 
-const str = (f: FormData, k: string) => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
+const str = (f: unknown, k: string): string => {
+  if (!f) return "";
+  if (typeof (f as { get?: unknown }).get === "function") {
+    const val = (f as FormData).get(k);
+    return typeof val === "string" ? val : "";
+  }
+  if (typeof f === "object" && k in f) {
+    const val = (f as Record<string, unknown>)[k];
+    return typeof val === "string" ? val : "";
+  }
+  return "";
+};
+
 const wait = (s?: number) => `Too many attempts. Please try again in ${Math.max(1, Math.ceil((s ?? 60) / 60))} minute(s).`;
 
 async function reqInfo() {
-  const h = await headers();
-  return { ip: clientIp(h), userAgent: h.get("user-agent") };
+  try {
+    const h = await headers();
+    return {
+      ip: h ? clientIp(h) : "unknown",
+      userAgent: h ? h.get("user-agent") : null,
+    };
+  } catch {
+    return { ip: "unknown", userAgent: null };
+  }
 }
 
 export async function passwordLoginAction(_: FormState, form: FormData): Promise<FormState> {
