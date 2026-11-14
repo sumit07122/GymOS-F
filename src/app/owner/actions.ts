@@ -14,6 +14,10 @@ import {
   updateMemberName,
   voidPayment,
 } from "@/server/gyms/operations";
+import {
+  recordOwnerScannerCheck,
+  recordManualAttendance,
+} from "@/server/gyms/attendance";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
@@ -140,4 +144,31 @@ export async function updateMemberNameAction(form: FormData) {
     failed = true;
   }
   redirect(`/owner/members/${userId}?${failed ? "error=member-profile" : "notice=member-profile-updated"}`);
+}
+
+export async function ownerCheckMemberAction(form: FormData) {
+  const me = await requireGym({ roles: ["OWNER"], access: "operational" });
+  const token = value(form, "token");
+  const res = await recordOwnerScannerCheck(me.gymId, token, me.userId);
+  redirect(`/owner/attendance?scan=${res.status.toLowerCase().replaceAll("_", "-")}`);
+}
+
+export async function manualAttendanceAction(form: FormData) {
+  const me = await requireGym({ roles: ["OWNER"], access: "operational" });
+  const userId = value(form, "userId");
+  const action = (value(form, "action") || "CHECK_IN") as "CHECK_IN" | "CHECK_OUT";
+  const reason = value(form, "reason") || "Front desk manual check";
+  let failed = false;
+  try {
+    await recordManualAttendance({
+      gymId: me.gymId,
+      userId,
+      action,
+      reason,
+      actorUserId: me.userId,
+    });
+  } catch {
+    failed = true;
+  }
+  redirect(`/owner/attendance?${failed ? "error=manual-failed" : "notice=manual-recorded"}`);
 }

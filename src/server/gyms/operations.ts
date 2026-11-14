@@ -9,13 +9,13 @@ const money = z.string().trim().regex(/^\d{1,10}(?:\.\d{1,2})?$/, "Enter an amou
 const memberInput = z.object({ name: z.string().trim().min(2).max(80), phone: z.string().trim().min(10).max(20) });
 const planInput = z.object({ name: z.string().trim().min(2).max(80), durationDays: z.coerce.number().int().min(1).max(3650), priceInr: money });
 
-function localDateKey(now: Date, timeZone: string) {
+export function localDateKey(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
   const part = (type: string) => parts.find((value) => value.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function localMidnight(dateKey: string, timeZone: string) {
+export function localMidnight(dateKey: string, timeZone: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const target = Date.UTC(year!, month! - 1, day!);
   let guess = target;
@@ -38,7 +38,7 @@ function localMidnight(dateKey: string, timeZone: string) {
   return new Date(guess);
 }
 
-const dateOnly = (dateKey: string) => new Date(`${dateKey}T00:00:00.000Z`);
+export const dateOnly = (dateKey: string) => new Date(`${dateKey}T00:00:00.000Z`);
 const dayMs = 86_400_000;
 
 async function assignMembershipTx(tx: Tx, gymId: string, userId: string, planId: string, now: Date) {

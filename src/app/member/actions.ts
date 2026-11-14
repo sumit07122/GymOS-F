@@ -2,13 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { requireGym } from "@/server/auth/guards";
-import { markAttendance, updateMemberProfile } from "@/server/gyms/operations";
+import { updateMemberProfile } from "@/server/gyms/operations";
+import { recordMemberReceptionScan } from "@/server/gyms/attendance";
 
 export async function checkInAction(form: FormData) {
   const me = await requireGym({ roles: ["MEMBER"], access: "operational" });
   let result: string;
   try {
-    result = await markAttendance(me.gymId, me.userId, String(form.get("token") ?? ""));
+    const res = await recordMemberReceptionScan(me.gymId, me.userId, String(form.get("token") ?? ""));
+    result = res.status;
   } catch {
     result = "FAILED";
   }

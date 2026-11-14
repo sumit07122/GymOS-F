@@ -272,11 +272,16 @@ model PaymentCorrection {
 }
 
 model Attendance {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gymId       String   @db.Uuid
-  userId      String   @db.Uuid
-  localDate   DateTime @db.Date
-  checkedInAt DateTime @default(now()) @db.Timestamptz(3)
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId             String    @db.Uuid
+  userId            String    @db.Uuid
+  localDate         DateTime  @db.Date
+  checkedInAt       DateTime  @default(now()) @db.Timestamptz(3)
+  checkedOutAt      DateTime? @db.Timestamptz(3)
+  durationMinutes   Int?
+  method            String    @default("RECEPTION_QR")
+  notes             String?
+  checkedInByUserId String?   @db.Uuid
 
   gym    Gym     @relation(fields: [gymId], references: [id], onDelete: Restrict)
   member GymUser @relation(fields: [gymId, userId], references: [gymId, userId], onDelete: Restrict)

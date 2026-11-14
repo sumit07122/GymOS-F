@@ -23,17 +23,25 @@ const messages: Record<string, { tone: "ok" | "warn" | "danger"; text: string }>
     tone: "ok",
     text: "Attendance confirmed! You are checked in for today.",
   },
+  "checked-out": {
+    tone: "ok",
+    text: "Check-out recorded! Your visit duration has been logged.",
+  },
   "already-checked-in": {
     tone: "warn",
-    text: "You have already checked in today. Each membership allows one check-in per calendar day.",
+    text: "You recently checked in. Scan again at the end of your workout to log your check-out.",
   },
   "membership-required": {
     tone: "danger",
     text: "An active membership is required to check in. Please renew at the gym desk.",
   },
+  "membership-expired": {
+    tone: "danger",
+    text: "Your membership has expired. Please visit reception to renew your plan.",
+  },
   "invalid-qr": {
     tone: "danger",
-    text: "Invalid QR code. Please scan the official reception QR poster.",
+    text: "Invalid or expired QR code. Please scan the live reception screen code.",
   },
   failed: {
     tone: "danger",

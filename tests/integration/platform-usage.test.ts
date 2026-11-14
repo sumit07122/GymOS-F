@@ -18,7 +18,7 @@ const ALLOWED = new Set([
 
 const walk = (dir: string): string[] =>
   readdirSync(dir).flatMap((f) => {
-    const p = join(dir, f);
+    const p = join(dir, f).replace(/\\/g, "/");
     return statSync(p).isDirectory() ? walk(p) : /\.(ts|tsx)$/.test(p) ? [p] : [];
   });
 

@@ -8,6 +8,7 @@ import {
   StatCard,
   Button,
 } from "@/components/ui";
+import { DigitalPassCard } from "./digital-pass-card";
 import { requireGym } from "@/server/auth/guards";
 import { getMemberPortal } from "@/server/gyms/operations";
 import { formatInr } from "@/server/money";
@@ -68,77 +69,14 @@ export default async function MemberHome() {
         </Notice>
       )}
 
-      {/* Digital Membership Pass Card (Hero) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f5a32] via-[#16834a] to-[#24a766] p-6 text-white shadow-xl sm:p-8">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative z-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-light">
-              <ShieldCheck className="size-4" />
-              <span>Official Digital Gym Pass</span>
-            </div>
-            <h2 className="mt-2 font-display text-2xl font-black tracking-tight text-white sm:text-3xl">
-              {data.member.name}
-            </h2>
-            <p className="mt-1 text-xs text-white/80">
-              {data.current ? data.current.plan.name : "Unassigned Plan"} &middot; {data.member.phone}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-start sm:items-end gap-2">
-            <Badge
-              tone={data.current ? "success" : "danger"}
-              size="md"
-              dot
-              className="bg-white/20 text-white border-white/30 backdrop-blur-md"
-            >
-              {data.current ? "Active Member" : "Expired / Inactive"}
-            </Badge>
-
-            {data.current && (
-              <span className="text-xs text-white/90 font-medium">
-                Valid through{" "}
-                {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(
-                  data.current.endsAt
-                )}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="relative z-10 mt-6 pt-6 border-t border-white/20 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4 text-xs text-white/80">
-            <div>
-              <span className="block text-[10px] uppercase tracking-wider text-white/60">
-                Total Check-ins
-              </span>
-              <strong className="text-sm font-bold text-white">
-                {data.attendance.length} visits
-              </strong>
-            </div>
-            <div className="h-6 w-px bg-white/20" />
-            <div>
-              <span className="block text-[10px] uppercase tracking-wider text-white/60">
-                Balance Due
-              </span>
-              <strong className="text-sm font-bold text-white">
-                {formatInr(data.balance)}
-              </strong>
-            </div>
-          </div>
-
-          <Link href="/member/attendance">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={QrCode}
-              className="bg-white text-forest hover:bg-white/90 border-transparent shadow-md"
-            >
-              Scan Check-in
-            </Button>
-          </Link>
-        </div>
-      </div>
+      {/* Digital Membership Pass Card (Hero with Dynamic 60s Signed Pass QR) */}
+      <DigitalPassCard
+        memberName={data.member.name}
+        phone={data.member.phone}
+        planName={data.current ? data.current.plan.name : "Unassigned Plan"}
+        endsAt={data.current ? data.current.endsAt : null}
+        status={data.current ? "ACTIVE" : "EXPIRED"}
+      />
 
       {/* Member KPIs */}
       <section aria-label="Membership overview" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

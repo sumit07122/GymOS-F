@@ -12,6 +12,8 @@ export async function GET() {
       {
         status: "unhealthy",
         database: "disconnected",
+        hasDatabaseUrl: dbHealth.hasDatabaseUrl,
+        error: dbHealth.error,
         timestamp: new Date().toISOString(),
       },
       { status: 503 }
