@@ -26,10 +26,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function withTenant<T>(gymId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
   if (!UUID.test(gymId)) throw new Error("withTenant: invalid gym id");
-  return db().$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT set_config('app.gym_id', ${gymId}, true)`;
-    return fn(tx);
-  });
+  return db().$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT set_config('app.gym_id', ${gymId}, true)`;
+      return fn(tx);
+    },
+    { maxWait: 15000, timeout: 30000 }
+  );
 }
 
 /**
@@ -37,8 +40,11 @@ export async function withTenant<T>(gymId: string, fn: (tx: Tx) => Promise<T>): 
  * Restricted by tests/platform-usage.test.ts to an allow-list of modules.
  */
 export async function withPlatform<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return db().$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT set_config('app.bypass', 'on', true)`;
-    return fn(tx);
-  });
+  return db().$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT set_config('app.bypass', 'on', true)`;
+      return fn(tx);
+    },
+    { maxWait: 15000, timeout: 30000 }
+  );
 }

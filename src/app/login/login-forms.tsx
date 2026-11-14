@@ -20,6 +20,8 @@ import {
   ArrowRight,
   User,
   Shield,
+  Building2,
+  Sparkles,
 } from "lucide-react";
 
 const init: FormState = {};
@@ -78,24 +80,41 @@ export function LoginForms({
 function StaffForm() {
   const [state, action, pending] = useActionState(passwordLoginAction, init);
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   return (
     <form action={action} className="space-y-4" aria-label="Owner and admin sign in">
       {state.error && <Notice tone="danger">{state.error}</Notice>}
 
-      <Field
-        label="Email address"
-        name="email"
-        type="email"
-        autoComplete="username"
-        required
-        icon={Mail}
-        placeholder="name@matrixgym.in"
-      />
+      <div className="space-y-1.5 text-left">
+        <label
+          htmlFor="staff-email"
+          className="block text-xs font-bold uppercase tracking-wider text-ink"
+        >
+          Email address
+        </label>
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-ink-muted">
+            <Mail className="size-4" />
+          </div>
+          <input
+            id="staff-email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="owner@matrixgym.in"
+            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-4 text-sm text-ink transition-colors placeholder:text-ink-subtle focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+      </div>
 
       <div className="space-y-1.5 text-left">
         <label
-          htmlFor="password"
+          htmlFor="staff-password"
           className="block text-xs font-bold uppercase tracking-wider text-ink"
         >
           Password
@@ -105,11 +124,13 @@ function StaffForm() {
             <Lock className="size-4" />
           </div>
           <input
-            id="password"
+            id="staff-password"
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••••••"
             className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-12 text-sm text-ink transition-colors placeholder:text-ink-subtle focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
@@ -129,6 +150,38 @@ function StaffForm() {
           {pending ? "Authenticating…" : "Sign in to Workspace"}
         </Button>
       </div>
+
+      {/* Quick Demo Credentials Assistant */}
+      <div className="pt-3 border-t border-line/60">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] font-semibold text-ink-muted">
+          <Sparkles className="size-3 text-brand" />
+          <span>Quick Demo Logins:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("owner@matrixgym.in");
+              setPassword("MatrixGym2026!#");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas-subtle px-2.5 py-1 text-[11px] font-medium text-ink hover:border-brand/40 hover:bg-brand/5 transition-colors cursor-pointer"
+          >
+            <Building2 className="size-3 text-brand" />
+            Matrix Gym Owner
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("admin@fixia.in");
+              setPassword("FixiaAdmin2026!#");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas-subtle px-2.5 py-1 text-[11px] font-medium text-ink hover:border-brand/40 hover:bg-brand/5 transition-colors cursor-pointer"
+          >
+            <Shield className="size-3 text-brand" />
+            Platform Admin
+          </button>
+        </div>
+      </div>
     </form>
   );
 }
@@ -136,6 +189,8 @@ function StaffForm() {
 function MemberForm() {
   const [method, setMethod] = useState<"password" | "otp">("password");
   const [showPassword, setShowPassword] = useState(false);
+  const [memberPhone, setMemberPhone] = useState("");
+  const [memberPassword, setMemberPassword] = useState("");
   const [pwState, pwAction, pwPending] = useActionState(memberPasswordLoginAction, init);
   const [reqState, reqAction, reqPending] = useActionState(requestOtpAction, init);
   const [verState, verAction, verPending] = useActionState(verifyOtpAction, init);
@@ -245,17 +300,34 @@ function MemberForm() {
     <form action={pwAction} className="space-y-4" aria-label="Member sign in with password">
       {pwState.error && <Notice tone="danger">{pwState.error}</Notice>}
 
-      <Field
-        label="Mobile number"
-        name="phone"
-        type="tel"
-        inputMode="tel"
-        autoComplete="tel"
-        placeholder="98765 43210"
-        required
-        icon={Phone}
-        hint="Registered 10-digit Indian mobile number"
-      />
+      <div className="space-y-1.5 text-left">
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="member-phone"
+            className="block text-xs font-bold uppercase tracking-wider text-ink"
+          >
+            Mobile number
+          </label>
+          <span className="text-xs text-ink-muted">Registered 10-digit</span>
+        </div>
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-ink-muted">
+            <Phone className="size-4" />
+          </div>
+          <input
+            id="member-phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            required
+            value={memberPhone}
+            onChange={(e) => setMemberPhone(e.target.value)}
+            placeholder="98765 43210"
+            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-4 text-sm text-ink transition-colors placeholder:text-ink-subtle focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+      </div>
 
       <div className="space-y-1.5 text-left">
         <div className="flex items-center justify-between">
@@ -282,6 +354,8 @@ function MemberForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
+            value={memberPassword}
+            onChange={(e) => setMemberPassword(e.target.value)}
             placeholder="••••••••••••"
             className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-12 text-sm text-ink transition-colors placeholder:text-ink-subtle focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
@@ -300,6 +374,25 @@ function MemberForm() {
         <Button type="submit" className="w-full" size="lg" disabled={pwPending}>
           {pwPending ? "Signing in…" : "Sign In to Gym"}
         </Button>
+      </div>
+
+      {/* Quick Demo Member Assistant */}
+      <div className="pt-3 border-t border-line/60">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] font-semibold text-ink-muted">
+          <Sparkles className="size-3 text-brand" />
+          <span>Quick Demo Member:</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMemberPhone("9876543210");
+            setMemberPassword("MatrixGym2026!#");
+          }}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas-subtle px-2.5 py-1 text-[11px] font-medium text-ink hover:border-brand/40 hover:bg-brand/5 transition-colors cursor-pointer"
+        >
+          <User className="size-3 text-brand" />
+          Aarav Sharma (98765 43210)
+        </button>
       </div>
 
       <div className="text-center pt-2">
