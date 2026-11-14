@@ -202,12 +202,16 @@ export async function setupMemberPassword(params: {
     },
   });
 
+  const eligibleGyms = await listMemberLoginGyms(userId, now);
+  const gymId = eligibleGyms.length === 1 ? eligibleGyms[0]!.id : null;
+
   await revokeAllSessions(userId);
   const session = await createSession({
     userId,
-    gymId: null,
+    gymId,
     kind: "MEMBER",
     ip,
+    now,
   });
 
   await audit({

@@ -391,7 +391,7 @@ function MemberForm() {
           className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas-subtle px-2.5 py-1 text-[11px] font-medium text-ink hover:border-brand/40 hover:bg-brand/5 transition-colors cursor-pointer"
         >
           <User className="size-3 text-brand" />
-          Aarav Sharma (98765 43210)
+          John Wick (98765 43210)
         </button>
       </div>
 

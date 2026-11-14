@@ -30,6 +30,16 @@ async function check() {
     }
   }
 
+  // Also check members
+  const members = await client.query('SELECT id, name, phone, email, "passwordHash", "mustChangePassword", status FROM "User" WHERE phone IS NOT NULL');
+  console.log("\n--- Members with Phone ---");
+  for (const m of members.rows) {
+    console.log(`Member: ${m.name} | Phone: ${m.phone} | Status: ${m.status} | HasHash: ${Boolean(m.passwordHash)} | MustChange: ${m.mustChangePassword}`);
+    if (m.passwordHash) {
+      console.log("  Testing MatrixGym2026!#:", await verify(m.passwordHash, "MatrixGym2026!#").catch(() => false));
+    }
+  }
+
   await client.end();
 }
 
