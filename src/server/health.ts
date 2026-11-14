@@ -1,3 +1,4 @@
+// Health check service for FIXIA GymOS (v1.0-prod)
 import { db } from "./db";
 
 export async function checkDatabaseHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string; hasDatabaseUrl?: boolean }> {
